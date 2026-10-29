@@ -16,7 +16,7 @@
 // estado: ok | warn | bad | na. null = “NA”: no es 0 y no entra en barras ni en cálculos.
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, esGrupoDe, heroGerencia, GENERAL } from "./gerencias.js";
+import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
@@ -98,14 +98,14 @@ function aplicarGerencia() {
   if (fuente && fuente.tipo === "graph") document.body.setAttribute("data-gerencia", gerencia.id); else document.body.removeAttribute("data-gerencia");
 }
 // Los tableros del grupo de su gerencia van primero.
-const ordenarPorGerencia = ts => [...ts].sort((a, b) => (esGrupoDe(a.grupo, gerencia) ? 0 : 1) - (esGrupoDe(b.grupo, gerencia) ? 0 : 1));
+const visibles = ts => fuente && fuente.tipo === "graph" ? visiblesParaGerencia(ts, gerencia) : ts;
 
 function pintarMenu() {
   const q = h("input", { type: "search", placeholder: "Buscar tablero…", "aria-label": "Buscar tablero" });
   const lista = h("div");
   const grupos = () => {
     const f = q.value.trim().toLowerCase(), por = new Map();
-    for (const t of ordenarPorGerencia(portal.tableros)) {
+    for (const t of visibles(portal.tableros)) {
       if (f && !(t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f)) continue;
       const g = t.grupo || "Tableros"; if (!por.has(g)) por.set(g, []); por.get(g).push(t);
     }
@@ -128,7 +128,7 @@ async function mostrarTablero(id, { releer = true } = {}) {
       c.replaceChildren(h("div", { class: "aviso bad", role: "alert" }, e.message)); return;
     }
   }
-  const t = portal.tableros.find(x => x.id === id);
+  const t = visibles(portal.tableros).find(x => x.id === id);
   actualId = t ? t.id : null;
   pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false");
   if (!t) { c.replaceChildren(portadaPortal()); return; }
@@ -160,8 +160,8 @@ function portadaPortal() {
     graph ? heroGerencia(gerencia, usuario) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
     !graph && portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
     graph ? h("h3", { class: "tus-tableros" }, "Tus tableros") : null,
-    h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, portal.tableros.length + (portal.tableros.length === 1 ? " tablero" : " tableros"))),
-    portal.tableros.length ? h("div", { class: "kpis" }, ordenarPorGerencia(portal.tableros).map(t => {
+    h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, visibles(portal.tableros).length + (visibles(portal.tableros).length === 1 ? " tablero" : " tableros"))),
+    visibles(portal.tableros).length ? h("div", { class: "kpis" }, visibles(portal.tableros).map(t => {
       const m = t.meta && t.meta.modificado ? hace(t.meta.modificado) : null;
       return h("a", { class: "kpi enlace", href: hrefDe(t) },
         h("div", { class: "et" }, t.grupo || "Tableros"), h("div", { class: "val chico" }, t.titulo),

@@ -27,7 +27,20 @@ export function gerenciaDe(departamento) {
   return GERENCIAS.find(g => g.claves.some(c => t.includes(c.length <= 2 ? " " + c + " " : c))) || GENERAL;
 }
 // un grupo del catálogo es de la gerencia de la persona si su nombre se reconoce como esa gerencia
-export const esGrupoDe = (grupo, g) => g !== GENERAL && gerenciaDe(grupo).id === g.id;
+// (Compras y Planeación no se evalúan aparte: sus tableros son los de Operaciones y CDS)
+export const esGrupoDe = (grupo, g) => {
+  const de = gerenciaDe(grupo).id;
+  return g !== GENERAL && (de === g.id || (de === "operaciones" && (g.id === "compras" || g.id === "planeacion")));
+};
+
+// Lo que la persona ve: sólo los tableros de su gerencia. Dirección ve todos los que su cuenta puede leer; sin gerencia
+// reconocida sólo se ven los tableros sin grupo o del grupo "General". Es la presentación: el acceso real a cada archivo
+// lo decide SharePoint con los permisos de la cuenta.
+export function visiblesParaGerencia(tableros, g) {
+  if (g.id === "direccion") return [...tableros];
+  if (g === GENERAL) return tableros.filter(t => !t.grupo || sinAcentos(t.grupo) === "general");
+  return tableros.filter(t => esGrupoDe(t.grupo, g));
+}
 export const todasLasGerencias = () => [...GERENCIAS, GENERAL];
 
 /* ---- ilustraciones (viewBox 0 0 320 180) ---- */

@@ -2,7 +2,8 @@
 // El marco usa sandbox="allow-scripts" sin allow-same-origin: el tablero no alcanza el token ni el almacenamiento.
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
-import { abrirCatalogo, yo, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { abrirCatalogo, yo, perfil, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { gerenciaDe, visiblesParaGerencia } from "./gerencias.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 
@@ -35,7 +36,9 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     try { cat = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo))); }
     catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
     if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
-    const t = cat.tableros.find(x => x && x.id === id);
+    // sólo los tableros de la gerencia de la persona: los demás no se abren desde aquí
+    const gerencia = gerenciaDe((await perfil().catch(() => ({}))).departamento);
+    const t = visiblesParaGerencia(cat.tableros.filter(x => x && typeof x.id === "string"), gerencia).find(x => x.id === id);
     if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
