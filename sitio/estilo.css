@@ -1,23 +1,23 @@
 /* SIT · rampa slate, azul marino y teal; series con la paleta validada. */
 :root {
-  --fondo: #f1f5f9; --tarjeta: #ffffff; --tinta: #0f172a; --tinta2: #475569; --linea: #e2e8f0;
-  --accion: #0b3b7a; --marca: #0ea5b7; --sombra: 0 1px 3px rgba(15, 23, 42, .08);
+  --fondo: #f2f6fa; --tarjeta: #ffffff; --tinta: #0d2b45; --tinta2: #4a5a63; --linea: #dde6ee;
+  --accion: #005499; --marca: #30a8d8; --sombra: 0 1px 3px rgba(15, 23, 42, .08);
   --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fee2e2;
   --na: #64748b; --na-bg: #e2e8f0;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 :root[data-theme="dark"] {
-  --fondo: #0b1220; --tarjeta: #0f172a; --tinta: #f1f5f9; --tinta2: #94a3b8; --linea: #1e293b;
-  --accion: #60a5fa; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+  --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
+  --accion: #5ab0ee; --marca: #48c0f0; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
   --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
   --na: #94a3b8; --na-bg: #1e293b;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --fondo: #0b1220; --tarjeta: #0f172a; --tinta: #f1f5f9; --tinta2: #94a3b8; --linea: #1e293b;
-    --accion: #60a5fa; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+    --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
+    --accion: #5ab0ee; --marca: #48c0f0; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
     --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
     --na: #94a3b8; --na-bg: #1e293b;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
@@ -26,19 +26,19 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--fondo); color: var(--tinta); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { background: var(--fondo); color: var(--tinta); font: 14px/1.45 Lato, "Helvetica Neue", Helvetica, Arial, sans-serif; }
 button, input, select { font: inherit; color: inherit; }
 a { color: var(--accion); }
 [hidden] { display: none !important; }
 
 /* encabezado */
-.banda { background: linear-gradient(120deg, #0b3b7a, #0ea5b7); color: #fff; padding: 0 16px; }
+.banda { background: var(--tarjeta); color: var(--tinta); border-bottom: 1px solid var(--linea); padding: 0 16px; }
 .banda-in { max-width: 1400px; margin: 0 auto; height: 56px; display: flex; align-items: center; gap: 12px; }
-.disco { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #0b3b7a; display: grid; place-items: center; font-weight: 800; flex: none; }
+.disco { width: 32px; height: 32px; border-radius: 50%; background: var(--accion); color: var(--tarjeta); display: grid; place-items: center; font-weight: 800; flex: none; }
 .banda h1 { font-size: 16px; margin: 0; font-weight: 700; }
 .banda .sub { font-size: 12px; opacity: .85; }
 .banda .espacio { flex: 1; }
-.pastilla { border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .12); color: #fff; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; }
+.pastilla { border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .12); color: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .pastilla:hover { background: rgba(255, 255, 255, .22); }
 .menu-btn { display: none; }
 
@@ -99,7 +99,7 @@ td.num, th.num { text-align: right; }
 .conectar { width: 100%; }
 .conectar .opcion { border: 1px solid var(--linea); border-radius: 14px; padding: 14px; margin-top: 12px; }
 .conectar .opcion h4 { margin: 0 0 4px; }
-.boton { background: var(--accion); color: #fff; border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.boton { background: var(--accion); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
 .boton.sec { background: transparent; color: var(--accion); border: 1px solid var(--accion); }
 .conectar input[type="text"], .conectar input[type="url"] { width: 100%; padding: 8px 12px; border: 1px solid var(--linea); border-radius: 10px; background: var(--fondo); margin: 6px 0; }
 .aviso { border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
@@ -181,7 +181,7 @@ nav.lateral:empty { display: none; }
 /* landing de inicio de sesión */
 .landing { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; }
 .landing-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: center; }
-.landing-titulo { margin: 0 0 14px; font-size: clamp(30px, 4.2vw, 46px); line-height: 1.1; font-weight: 800; letter-spacing: -.01em; }
+.landing-titulo { margin: 0 0 14px; font-size: clamp(28px, 3.7vw, 42px); line-height: 1.12; font-weight: 700; letter-spacing: -.01em; }
 .landing-sub { margin: 0 0 24px; font-size: 18px; line-height: 1.5; color: var(--tinta2); max-width: 34em; }
 .boton.grande { padding: 13px 24px; font-size: 16px; font-weight: 600; }
 .landing .acciones { margin: 8px 0 28px; }
@@ -244,3 +244,4 @@ nav.lateral a[aria-current="page"] { background: var(--acento); }
 .banda .pastilla { border: 1px solid var(--linea); background: transparent; color: var(--tinta); }
 .banda .pastilla:hover { background: var(--fondo); }
 .chip-banda { border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta2); }
+.g-anillo { fill: none; stroke: var(--acento); stroke-opacity: .32; stroke-width: 1.5; }

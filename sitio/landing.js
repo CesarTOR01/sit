@@ -7,7 +7,7 @@ function ilustracionLanding() {
   const r = (x, y, w, hh, cl, rx) => s("rect", { x, y, width: w, height: hh, rx, class: cl });
   const c = (cx, cy, rad, cl) => s("circle", { cx, cy, r: rad, class: cl });
   return s("svg", { class: "landing-arte", viewBox: "0 0 360 300", "aria-hidden": "true" },
-    c(180, 160, 124, "g-halo"),
+    c(180, 160, 134, "g-anillo"), c(198, 148, 120, "g-anillo"), c(162, 172, 110, "g-anillo"),
     r(150, 34, 60, 26, "g-tenue", 7), r(158, 60, 44, 16, "g-tenue", 3),
     r(136, 76, 88, 178, "g-contorno", 24),
     r(140, 150, 80, 100, "g-liquido", 20),

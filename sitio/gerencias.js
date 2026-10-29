@@ -75,7 +75,7 @@ const ARTE = {
 ARTE.general = ARTE.direccion;
 
 export function ilustracion(id) {
-  return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (id || "SIT") }, ...(ARTE[id] || ARTE.general)());
+  return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (id || "SIT") }, c(160, 90, 100, "g-anillo"), c(176, 82, 86, "g-anillo"), ...(ARTE[id] || ARTE.general)());
 }
 
 // El encabezado del frente de la persona: su gerencia, su lema y la ilustración.
