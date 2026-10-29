@@ -78,7 +78,8 @@ export async function configurarDesdeEnlace(idCompartido) {
   try { item = await (await api("shares/" + encodeURIComponent(idCompartido) + "/driveItem?$select=id,name,folder,parentReference")).json(); }
   catch (e) {
     if (e instanceof ErrorAuth || (e instanceof ErrorGraph && ["red", "sin-sesion"].includes(e.codigo))) throw e;
-    throw new ErrorGraph("enlace", "No se pudo abrir el enlace. Pide uno nuevo."); // sin detalles: el enlace no se repite en ningún mensaje
+    // el enlace no se repite en ningún mensaje; sólo se muestra el código de estado de Graph
+    throw new ErrorGraph("enlace", "No se pudo abrir el enlace" + (e instanceof ErrorGraph && e.estado ? " (Graph " + e.estado + ")" : "") + ". Pide uno nuevo.", e instanceof ErrorGraph ? e.estado : null);
   }
   idCompartido = null;
   const esCarpeta = !!item.folder;
