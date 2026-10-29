@@ -1,4 +1,5 @@
-// Lectura de archivos por Microsoft Graph con el token de la persona: sólo ve lo que su cuenta ya puede ver.
+// Lectura de archivos con el token de la persona: sólo ve lo que su cuenta ya puede ver.
+// El perfil sale de Microsoft Graph; los archivos, de la API REST de SharePoint de la organización.
 import { CONFIG } from "./config.js";
 import { token, ErrorAuth } from "./auth.js";
 
@@ -8,20 +9,21 @@ export class ErrorGraph extends Error {
 
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 
-async function api(ruta, init = {}, intento = 0, renovado = false) {
-  const t = await token();
+// Una petición con el token del recurso `tipo` ("graph" o "sp"). cache:"no-store": ni se lee ni se escribe la caché HTTP.
+async function pedir(url, tipo, nombre, init = {}, intento = 0, renovado = false) {
+  const t = await token(tipo, renovado);
   let r;
-  // cache:"no-store": ni se lee ni se escribe la caché HTTP del navegador; cada petición va a la fuente
-  try { r = await fetch(CONFIG.graph + ruta, { ...init, cache: "no-store", headers: { Authorization: "Bearer " + t, ...(init.headers || {}) } }); }
-  catch (_) { throw new ErrorGraph("red", "No hay conexión con el servicio de archivos."); }
-  if (r.status === 401 && !renovado) { await token(true); return api(ruta, init, intento, true); }
+  try { r = await fetch(url, { ...init, cache: "no-store", headers: { Authorization: "Bearer " + t, ...(init.headers || {}) } }); }
+  catch (e) { if (e && e.name === "AbortError") throw e; throw new ErrorGraph("red", "No hay conexión con el servicio de archivos."); }
+  if (r.status === 401 && !renovado) return pedir(url, tipo, nombre, init, intento, true);
   if ((r.status === 429 || r.status === 503) && intento < 2) {
-    await esperar(Math.min(10, Number(r.headers.get("Retry-After")) || 2) * 1000); return api(ruta, init, intento + 1, renovado);
+    await esperar(Math.min(10, Number(r.headers.get("Retry-After")) || 2) * 1000); return pedir(url, tipo, nombre, init, intento + 1, renovado);
   }
   if (r.ok) return r;
   const estado = r.status;
-  throw new ErrorGraph(estado === 401 ? "sin-sesion" : estado === 403 ? "sin-permiso" : estado === 404 ? "no-existe" : "graph", "Graph respondió " + estado + ".", estado);
+  throw new ErrorGraph(estado === 401 ? "sin-sesion" : estado === 403 ? "sin-permiso" : estado === 404 ? "no-existe" : "graph", nombre + " respondió " + estado + ".", estado);
 }
+const api = (ruta, init) => pedir(CONFIG.graph + ruta, "graph", "Graph", init);
 
 export async function perfil() {
   const j = await (await api("me?$select=displayName,department")).json();
@@ -30,14 +32,14 @@ export async function perfil() {
 export async function yo() { return (await perfil()).nombre; }
 
 // ---- Ubicación del catálogo (interruptor general) ----
-// Se guarda en este navegador sólo el id del drive y el de la carpeta del catálogo. No hay búsqueda por nombre: si el
-// catálogo ya no está en esa carpeta, el sitio no lo busca en otro lugar. Mover el catálogo corta el acceso.
+// Se guarda en este navegador sólo el dominio de SharePoint y la ruta de la carpeta del catálogo. No hay búsqueda por
+// nombre: si el catálogo ya no está en esa carpeta, el sitio no lo busca en otro lugar. Mover el catálogo corta el acceso.
 const UBICACION = "sit.ubicacion", PENDIENTE = "sit.pendiente";
 
 export function leerUbicacion() {
-  try { const u = JSON.parse(localStorage.getItem(UBICACION) || "null"); return u && u.drive && u.carpeta ? u : null; } catch (_) { return null; }
+  try { const u = JSON.parse(localStorage.getItem(UBICACION) || "null"); return u && u.host && u.carpeta ? u : null; } catch (_) { return null; }
 }
-function guardarUbicacion(u) { try { localStorage.setItem(UBICACION, JSON.stringify({ drive: u.drive, carpeta: u.carpeta })); } catch (_) { /* sin almacenamiento */ } }
+function guardarUbicacion(u) { try { localStorage.setItem(UBICACION, JSON.stringify({ host: u.host, carpeta: u.carpeta })); } catch (_) { /* sin almacenamiento */ } }
 
 // Borra todo lo que SIT guardó en este navegador.
 export function olvidarEquipo() {
@@ -45,60 +47,81 @@ export function olvidarEquipo() {
   try { Object.keys(sessionStorage).filter(k => k.startsWith("sit.")).forEach(k => sessionStorage.removeItem(k)); } catch (_) { /* sin almacenamiento */ }
 }
 
-const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const deBase64Url = b => {
+  try {
+    const s = b.replace(/-/g, "+").replace(/_/g, "/"); const bin = atob(s + "=".repeat((4 - s.length % 4) % 4));
+    return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+  } catch (_) { return null; }
+};
 
-// El valor del fragmento (#c=...) puede ser un id de uso compartido (u!...), el enlace mismo o el enlace en base64url.
-// Devuelve el id de uso compartido, o null si no tiene forma de enlace. Nunca devuelve ni registra el valor original.
-export function aIdCompartido(valor) {
+// El valor del fragmento (#c=...) es la dirección de la carpeta del catálogo en SharePoint, tal cual o en base64url
+// (con o sin el prefijo "u!"). Devuelve {host, carpeta} (la ruta de la carpeta en el servidor) o null si no tiene esa forma.
+// Nunca devuelve ni registra el valor original.
+export function aUbicacion(valor) {
   let v;
   try { v = decodeURIComponent(String(valor || "").trim()); } catch (_) { return null; }
-  if (/^u![A-Za-z0-9_-]{8,}$/.test(v)) return v;
-  if (/^https:\/\/[^\s]+$/i.test(v)) return "u!" + b64url(new TextEncoder().encode(v));
-  if (/^[A-Za-z0-9_-]{16,}$/.test(v)) return "u!" + v;
-  return null;
+  if (!/^https:\/\//i.test(v)) {
+    const b = v.replace(/^u!/, "");
+    if (!/^[A-Za-z0-9_-]{16,}$/.test(b)) return null;
+    v = deBase64Url(b);
+  }
+  let u;
+  try { u = new URL(String(v || "")); } catch (_) { return null; }
+  if (u.protocol !== "https:" || !/^[a-z0-9-]+(-my)?\.sharepoint\.com$/i.test(u.hostname)) return null;
+  // la carpeta puede venir como parámetro "id" (vista de biblioteca) o en la ruta de la dirección
+  let carpeta = u.searchParams.get("id") || safeDecode(u.pathname);
+  carpeta = "/" + carpeta.split("/").filter(Boolean).join("/");
+  const partes = carpeta.split("/").filter(Boolean);
+  if (partes.length && partes[partes.length - 1].toLowerCase() === CONFIG.catalogo.toLowerCase()) partes.pop();
+  if (partes.length < 2 || partes[0].startsWith(":") || partes.some(p => p === ".." || p === ".")) return null;
+  return { host: u.hostname.toLowerCase(), carpeta: "/" + partes.join("/") };
 }
+function safeDecode(t) { try { return decodeURIComponent(t); } catch (_) { return t; } }
 
-// Saca el enlace del fragmento de la dirección y lo borra de la barra en el mismo instante, antes de cualquier otra cosa.
-// Devuelve undefined si la dirección no trae fragmento de catálogo, null si lo trae pero no tiene forma de enlace, o el id.
+// Saca la dirección del fragmento y la borra de la barra en el mismo instante, antes de cualquier otra cosa.
+// Devuelve undefined si la dirección no trae fragmento de catálogo, null si lo trae pero no tiene forma de carpeta, o {host, carpeta}.
 export function tomarEnlaceDelFragmento() {
   const m = /^#c=(.*)$/.exec(location.hash);
   if (!m) return undefined;
   history.replaceState(null, "", location.pathname + location.search);
-  return aIdCompartido(m[1]);
+  return aUbicacion(m[1]);
 }
-export function dejarPendiente(id) { try { sessionStorage.setItem(PENDIENTE, id); } catch (_) { /* sin almacenamiento */ } }
-export function hayPendiente() { try { return !!sessionStorage.getItem(PENDIENTE); } catch (_) { return false; } }
+export function dejarPendiente(u) { try { sessionStorage.setItem(PENDIENTE, JSON.stringify(u)); } catch (_) { /* sin almacenamiento */ } }
+function leerPendiente() { try { const u = JSON.parse(sessionStorage.getItem(PENDIENTE) || "null"); return u && u.host && u.carpeta ? u : null; } catch (_) { return null; } }
+export function hayPendiente() { return !!leerPendiente(); }
 export function tomarPendiente() {
-  try { const id = sessionStorage.getItem(PENDIENTE); sessionStorage.removeItem(PENDIENTE); return id; } catch (_) { return null; }
+  const u = leerPendiente();
+  try { sessionStorage.removeItem(PENDIENTE); } catch (_) { /* sin almacenamiento */ }
+  return u;
 }
+// El dominio de SharePoint del catálogo (el del enlace pendiente o el de la carpeta guardada), para pedir su permiso al entrar.
+export function hostConocido() { const p = leerPendiente(), u = leerUbicacion(); return p ? p.host : u ? u.host : null; }
 
-// Resuelve el enlace con la cuenta de la persona y guarda sólo drive y carpeta. El id se descarta al terminar.
-export async function configurarDesdeEnlace(idCompartido) {
-  let item;
-  try { item = await (await api("shares/" + encodeURIComponent(idCompartido) + "/driveItem?$select=id,name,folder,parentReference")).json(); }
+// Comprueba con la cuenta de la persona que el catálogo está en esa carpeta y guarda sólo dominio y ruta.
+export async function configurarDesdeEnlace(ubicacion) {
+  const f = new FuenteSP(ubicacion.host, ubicacion.carpeta);
+  try { await f.metadatos(CONFIG.catalogo); }
   catch (e) {
     if (e instanceof ErrorAuth || (e instanceof ErrorGraph && ["red", "sin-sesion"].includes(e.codigo))) throw e;
-    // el enlace no se repite en ningún mensaje; sólo se muestra el código de estado de Graph
-    throw new ErrorGraph("enlace", "No se pudo abrir el enlace" + (e instanceof ErrorGraph && e.estado ? " (Graph " + e.estado + ")" : "") + ". Pide uno nuevo.", e instanceof ErrorGraph ? e.estado : null);
+    // la dirección no se repite en ningún mensaje; sólo se muestra el código de estado de SharePoint
+    throw new ErrorGraph("enlace", "No se pudo abrir la carpeta del catálogo" + (e instanceof ErrorGraph && e.estado ? " (SharePoint " + e.estado + ")" : "") + ". Pide un enlace nuevo.", e instanceof ErrorGraph ? e.estado : null);
   }
-  idCompartido = null;
-  const esCarpeta = !!item.folder;
-  const drive = (item.parentReference || {}).driveId;
-  const carpeta = esCarpeta ? item.id : (item.parentReference || {}).id;
-  if (!drive || !carpeta || (!esCarpeta && String(item.name || "").toLowerCase() !== CONFIG.catalogo.toLowerCase())) throw new ErrorGraph("enlace", "El enlace no corresponde al catálogo. Pide uno nuevo.");
-  guardarUbicacion({ drive, carpeta });
+  guardarUbicacion(ubicacion);
 }
 
-let fallosDirecto = 0;
-const ruta = rel => String(rel).split("/").filter(Boolean).map(encodeURIComponent).join("/");
-
-// Una carpeta de archivos de la organización. `leer` baja el archivo de una ruta relativa a ella.
-export class FuenteGraph {
-  constructor(drive, carpeta, nombre = "Archivos de la organización") { this.drive = drive; this.carpeta = carpeta; this.tipo = "graph"; this.nombre = nombre; }
-  item(rel) { return `drives/${encodeURIComponent(this.drive)}/items/${encodeURIComponent(this.carpeta)}:/${ruta(rel)}`; }
+// Una carpeta de archivos de la organización en SharePoint. `leer` baja el archivo de una ruta relativa a ella.
+export class FuenteSP {
+  constructor(host, carpeta, nombre = "Archivos de la organización") { this.host = host; this.carpeta = carpeta; this.tipo = "graph"; this.nombre = nombre; }
+  // la API REST vive en el sitio que contiene la carpeta: /sites/<x>, /teams/<x>, /personal/<x> o la raíz
+  base() { const m = /^\/(?:sites|teams|personal)\/[^/]+/i.exec(this.carpeta); return "https://" + this.host + (m ? m[0] : ""); }
+  archivo(rel) {
+    const p = this.carpeta + "/" + String(rel).split("/").filter(Boolean).join("/");
+    return this.base() + "/_api/web/GetFileByServerRelativePath(decodedurl='" + p.split("/").map(s => encodeURIComponent(s.replace(/'/g, "''"))).join("/") + "')";
+  }
+  pedir(url, init) { return pedir(url, "sp", "SharePoint", init); }
   async metadatos(rel) {
-    const j = await (await api(this.item(rel) + "?$select=id,name,size,lastModifiedDateTime")).json();
-    return { id: j.id, nombre: j.name, bytes: j.size, modificado: j.lastModifiedDateTime };
+    const j = await (await this.pedir(this.archivo(rel) + "?$select=Name,Length,TimeLastModified", { headers: { Accept: "application/json;odata=nometadata" } })).json();
+    return { id: j.Name, nombre: j.Name, bytes: Number(j.Length) || 0, modificado: j.TimeLastModified };
   }
   // progreso(bytesLeidos, total) se llama mientras baja; espera(segundos) se llama cada segundo hasta que llega la respuesta.
   async leer(rel, progreso, espera) {
@@ -106,8 +129,8 @@ export class FuenteGraph {
     let reloj = null;
     if (espera) { espera(0); reloj = setInterval(() => espera(Math.floor((Date.now() - t0) / 1000)), 1000); }
     let r;
-    try { r = await this.respuesta(rel); } finally { clearInterval(reloj); }
-    const total = Number(r.headers.get("Content-Length")) || r.sizeConocido || 0;
+    try { r = await this.pedir(this.archivo(rel) + "/$value"); } finally { clearInterval(reloj); }
+    const total = Number(r.headers.get("Content-Length")) || 0;
     if (!progreso || !r.body) return r.arrayBuffer();
     const lector = r.body.getReader(), partes = []; let n = 0;
     for (;;) { const { done, value } = await lector.read(); if (done) break; partes.push(value); n += value.length; progreso(n, total); }
@@ -115,42 +138,12 @@ export class FuenteGraph {
     for (const p of partes) { salida.set(p, o); o += p.length; }
     return salida.buffer;
   }
-
-  // La primera respuesta de la descarga. El camino seguro es /content con el token; el enlace directo lo acelera.
-  // Si el enlace directo falla, /content arranca de inmediato; si no responde en 3 s, /content arranca a la vez y gana la
-  // primera que llegue, y la otra se cancela. El respaldo se lanza una sola vez por descarga. Nada se guarda: no-store.
-  async respuesta(rel) {
-    const meta = await (await api(this.item(rel))).json();
-    const rutaContent = `drives/${encodeURIComponent(this.drive)}/items/${encodeURIComponent(meta.id)}/content`;
-    const directo = meta["@microsoft.graph.downloadUrl"];
-    const conTamano = r => { r.sizeConocido = meta.size || 0; return r; };
-    if (!directo || fallosDirecto >= 2) return conTamano(await api(rutaContent));
-
-    const acDirecto = new AbortController(), acContent = new AbortController();
-    let lanzado = false, temporizador = null;
-    const pDirecto = fetch(directo, { signal: acDirecto.signal, cache: "no-store" })
-      .then(x => { if (!x.ok) throw new Error("directo"); return { r: x, via: "directo" }; });
-    const pContent = new Promise((ok, mal) => {
-      const lanzar = () => { if (lanzado) return; lanzado = true; clearTimeout(temporizador); api(rutaContent, { signal: acContent.signal }).then(x => ok({ r: x, via: "content" }), mal); };
-      temporizador = setTimeout(lanzar, 3000);
-      pDirecto.catch(() => { if (!acDirecto.signal.aborted) fallosDirecto++; lanzar(); });
-    });
-    try {
-      const g = await Promise.any([pDirecto, pContent]);
-      (g.via === "directo" ? acContent : acDirecto).abort();
-      return conTamano(g.r);
-    } catch (e) {
-      // fallaron las dos vías: se informa el error de /content (el del enlace directo no sirve a la persona)
-      const motivo = e && e.errors ? e.errors[e.errors.length - 1] : e;
-      throw motivo instanceof ErrorGraph || motivo instanceof ErrorAuth ? motivo : new ErrorGraph("red", "No hay conexión con el servicio de archivos.");
-    } finally { clearTimeout(temporizador); }
-  }
 }
 
 export async function abrirCatalogo() {
   const u = leerUbicacion();
   if (!u) throw new ErrorGraph("sin-ubicacion", "No hay un catálogo configurado en este equipo.");
-  return new FuenteGraph(u.drive, u.carpeta);
+  return new FuenteSP(u.host, u.carpeta);
 }
 
 // El catálogo ya no está donde se guardó (movido, borrado o sin permiso): se avisa sin detalles y no se busca en otro lugar.

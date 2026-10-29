@@ -6,9 +6,10 @@ const BASE = {
   cliente: "9d8ec9f1-9ae8-42c8-8031-40c64434d7f7",
   autoridad: "https://login.microsoftonline.com/5d9855c7-56a4-4456-b63f-4b78d8c8a338/oauth2/v2.0/",
   graph: "https://graph.microsoft.com/v1.0/",
-  // alcances delegados: lectura de los archivos que la persona ya puede ver
-  alcances: ["openid", "profile", "offline_access", "User.Read", "Files.Read"],
+  // alcances delegados: el perfil por Graph y la lectura de los archivos que la persona ya puede ver por SharePoint
+  // (el recurso de SharePoint lleva el dominio del catálogo, que sale del enlace de la persona y no se escribe aquí)
   alcancesBasicos: ["openid", "profile", "offline_access", "User.Read"],
+  alcanceSharePoint: "AllSites.Read",
   catalogo: "sit-catalogo.json",
   redirect: null, // por omisión: la carpeta de index.html, con "/" final
 };

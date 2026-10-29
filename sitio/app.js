@@ -20,8 +20,8 @@ import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./geren
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
-import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos } from "./auth.js";
-import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
+import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -90,7 +90,7 @@ function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false
     h("label", { class: "boton sec bloque" }, "Elegir carpeta", h("input", { type: "file", webkitdirectory: true, hidden: true, onchange: e => e.target.files.length && conectar(new FuenteArchivos(e.target.files), "portal.json") }))));
   if (["localhost", "127.0.0.1"].includes(location.hostname)) locales.push(h("div", { class: "opcion" }, h("h4", {}, "Dirección local"), h("p", {}, "Una dirección en este equipo que sirva ", h("code", {}, "portal.json"), "."), url, h("button", { class: "boton sec", onclick: porURL }, "Conectar")));
   document.body.removeAttribute("data-gerencia");
-  $("conectar").replaceChildren(landing({ aviso, info, ofrecerBasico, entrar: () => iniciarSesion(), entrarBasico: () => iniciarSesion({ basico: true }), extras: ["localhost", "127.0.0.1"].includes(location.hostname) ? locales : [] }));
+  $("conectar").replaceChildren(landing({ aviso, info, ofrecerBasico, entrar: () => iniciarSesion({ host: hostConocido() }), entrarBasico: () => iniciarSesion({ basico: true }), extras: ["localhost", "127.0.0.1"].includes(location.hostname) ? locales : [] }));
 }
 
 // El frente de la persona toma el acento y la imagen de su gerencia (la del departamento de su perfil).
@@ -218,6 +218,18 @@ async function conectar(f, archivo) {
 }
 
 async function conectarSesion() {
+  const dominio = hostConocido();
+  // la sesión se abrió para otro dominio de SharePoint (o sin lectura de archivos): se pide entrar de nuevo con el del catálogo
+  if (dominio && !sesionBasica() && hostDeSesion() !== dominio) {
+    mostrarConexion({ info: "Para abrir SIT con este enlace, inicia sesión con tu cuenta de la organización." });
+    $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
+    return;
+  }
+  if (!dominio && !puedeLeerArchivos() && !sesionBasica()) {
+    mostrarConexion({ aviso: textoError(new ErrorGraph("sin-ubicacion", "")) });
+    $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
+    return;
+  }
   if (!puedeLeerArchivos()) {
     mostrarConexion({ aviso: "Entraste con tu perfil, pero SIT todavía no tiene autorizada la lectura de archivos para tu cuenta. No hay tableros que mostrar hasta que esté autorizada.", ofrecerBasico: false });
     $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
