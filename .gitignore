@@ -1,0 +1,12 @@
+# SIT es sólo código: nada de datos ni de configuración local.
+datos/
+*.json
+*.csv
+*.xlsx
+*.db
+*.parquet
+*.zip
+*.log
+.claude/
+__pycache__/
+*.pyc
