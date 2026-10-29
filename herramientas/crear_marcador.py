@@ -13,6 +13,7 @@ Códigos: 0 dirección impresa; 1 el texto pegado no parece un enlace.
 """
 import base64
 import getpass
+import subprocess
 import sys
 
 BASE = "https://cesartor01.github.io/sit/"
@@ -32,7 +33,14 @@ def main(argv):
     if not enlace.lower().startswith("https://"):
         print("crear_marcador: el texto pegado no parece un enlace https.")
         return 1
-    print(base + "#c=" + id_compartido(enlace))
+    direccion = base + "#c=" + id_compartido(enlace)
+    print(direccion)
+    # la terminal parte el renglón al copiar: la dirección también queda en el portapapeles, en una sola línea
+    try:
+        subprocess.run(["clip"], input=direccion.encode("ascii"), check=True)
+        print("(copiada al portapapeles)")
+    except (OSError, subprocess.CalledProcessError):
+        pass
     return 0
 
 
