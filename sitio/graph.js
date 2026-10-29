@@ -98,27 +98,50 @@ export class FuenteGraph {
     const j = await (await api(this.item(rel) + "?$select=id,name,size,lastModifiedDateTime")).json();
     return { id: j.id, nombre: j.name, bytes: j.size, modificado: j.lastModifiedDateTime };
   }
-  // progreso(bytesLeidos, total) se llama mientras baja
-  async leer(rel, progreso) {
-    const meta = await (await api(this.item(rel))).json();
-    // El camino seguro es /content con el token. El enlace directo sólo lo acelera: si falla (CORS, red o más de 20 s sin
-    // respuesta) se baja por /content, y tras dos fallos en la sesión ya no se intenta.
-    const directo = meta["@microsoft.graph.downloadUrl"];
-    let r = null;
-    if (directo && fallosDirecto < 2) {
-      const ac = new AbortController(), reloj = setTimeout(() => ac.abort(), 20000);
-      try { r = await fetch(directo, { signal: ac.signal, cache: "no-store" }); if (!r.ok) { r = null; fallosDirecto++; } }
-      catch (_) { r = null; fallosDirecto++; }
-      finally { clearTimeout(reloj); }
-    }
-    if (!r) r = await api(`drives/${encodeURIComponent(this.drive)}/items/${encodeURIComponent(meta.id)}/content`);
-    const total = Number(r.headers.get("Content-Length")) || meta.size || 0;
+  // progreso(bytesLeidos, total) se llama mientras baja; espera(segundos) se llama cada segundo hasta que llega la respuesta.
+  async leer(rel, progreso, espera) {
+    const t0 = Date.now();
+    let reloj = null;
+    if (espera) { espera(0); reloj = setInterval(() => espera(Math.floor((Date.now() - t0) / 1000)), 1000); }
+    let r;
+    try { r = await this.respuesta(rel); } finally { clearInterval(reloj); }
+    const total = Number(r.headers.get("Content-Length")) || r.sizeConocido || 0;
     if (!progreso || !r.body) return r.arrayBuffer();
     const lector = r.body.getReader(), partes = []; let n = 0;
     for (;;) { const { done, value } = await lector.read(); if (done) break; partes.push(value); n += value.length; progreso(n, total); }
     const salida = new Uint8Array(n); let o = 0;
     for (const p of partes) { salida.set(p, o); o += p.length; }
     return salida.buffer;
+  }
+
+  // La primera respuesta de la descarga. El camino seguro es /content con el token; el enlace directo lo acelera.
+  // Si el enlace directo falla, /content arranca de inmediato; si no responde en 3 s, /content arranca a la vez y gana la
+  // primera que llegue, y la otra se cancela. El respaldo se lanza una sola vez por descarga. Nada se guarda: no-store.
+  async respuesta(rel) {
+    const meta = await (await api(this.item(rel))).json();
+    const rutaContent = `drives/${encodeURIComponent(this.drive)}/items/${encodeURIComponent(meta.id)}/content`;
+    const directo = meta["@microsoft.graph.downloadUrl"];
+    const conTamano = r => { r.sizeConocido = meta.size || 0; return r; };
+    if (!directo || fallosDirecto >= 2) return conTamano(await api(rutaContent));
+
+    const acDirecto = new AbortController(), acContent = new AbortController();
+    let lanzado = false, temporizador = null;
+    const pDirecto = fetch(directo, { signal: acDirecto.signal, cache: "no-store" })
+      .then(x => { if (!x.ok) throw new Error("directo"); return { r: x, via: "directo" }; });
+    const pContent = new Promise((ok, mal) => {
+      const lanzar = () => { if (lanzado) return; lanzado = true; clearTimeout(temporizador); api(rutaContent, { signal: acContent.signal }).then(x => ok({ r: x, via: "content" }), mal); };
+      temporizador = setTimeout(lanzar, 3000);
+      pDirecto.catch(() => { if (!acDirecto.signal.aborted) fallosDirecto++; lanzar(); });
+    });
+    try {
+      const g = await Promise.any([pDirecto, pContent]);
+      (g.via === "directo" ? acContent : acDirecto).abort();
+      return conTamano(g.r);
+    } catch (e) {
+      // fallaron las dos vías: se informa el error de /content (el del enlace directo no sirve a la persona)
+      const motivo = e && e.errors ? e.errors[e.errors.length - 1] : e;
+      throw motivo instanceof ErrorGraph || motivo instanceof ErrorAuth ? motivo : new ErrorGraph("red", "No hay conexión con el servicio de archivos.");
+    } finally { clearTimeout(temporizador); }
   }
 }
 
