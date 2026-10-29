@@ -23,10 +23,11 @@ async function api(ruta, init = {}, intento = 0, renovado = false) {
   throw new ErrorGraph(estado === 401 ? "sin-sesion" : estado === 403 ? "sin-permiso" : estado === 404 ? "no-existe" : "graph", "Graph respondió " + estado + ".", estado);
 }
 
-export async function yo() {
-  const j = await (await api("me?$select=displayName")).json();
-  return j.displayName || "";
+export async function perfil() {
+  const j = await (await api("me?$select=displayName,department")).json();
+  return { nombre: j.displayName || "", departamento: j.department || "" };
 }
+export async function yo() { return (await perfil()).nombre; }
 
 // ---- Ubicación del catálogo (interruptor general) ----
 // Se guarda en este navegador sólo el id del drive y el de la carpeta del catálogo. No hay búsqueda por nombre: si el

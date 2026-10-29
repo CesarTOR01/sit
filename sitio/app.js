@@ -15,11 +15,13 @@
 // formato: moneda, moneda_abrev, entero, decimal, pct (fracción: 0.91 = 91%), dias, piezas, fecha, texto, estado (sólo en tabla).
 // estado: ok | warn | bad | na. null = “NA”: no es 0 y no entra en barras ni en cálculos.
 import { h } from "./comun.js";
+import { landing } from "./landing.js";
+import { gerenciaDe, esGrupoDe, heroGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos } from "./auth.js";
-import { abrirCatalogo, yo, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -28,7 +30,7 @@ let enlaceInvalido = false;
 
 const $ = id => document.getElementById(id);
 const VIGENCIA_H = 36;
-let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "";
+let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "", gerencia = GENERAL;
 
 /* ---------- tema ---------- */
 function tema(t) {
@@ -87,23 +89,23 @@ function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false
     h("label", { class: "boton sec bloque" }, "Elegir archivos", h("input", { type: "file", multiple: true, accept: ".json,application/json", hidden: true, onchange: e => e.target.files.length && conectar(new FuenteArchivos(e.target.files), "portal.json") })), " ",
     h("label", { class: "boton sec bloque" }, "Elegir carpeta", h("input", { type: "file", webkitdirectory: true, hidden: true, onchange: e => e.target.files.length && conectar(new FuenteArchivos(e.target.files), "portal.json") }))));
   if (["localhost", "127.0.0.1"].includes(location.hostname)) locales.push(h("div", { class: "opcion" }, h("h4", {}, "Dirección local"), h("p", {}, "Una dirección en este equipo que sirva ", h("code", {}, "portal.json"), "."), url, h("button", { class: "boton sec", onclick: porURL }, "Conectar")));
-  $("conectar").replaceChildren(
-    h("section", { class: "tarjeta" }, h("h2", { class: "sin-margen" }, "Inicia sesión"),
-      h("p", {}, "SIT lee los tableros con tus propios permisos: sólo verás los que tu cuenta de la organización puede abrir. Esta página no guarda cifras ni datos."),
-      info ? h("p", { class: "aviso warn" }, info) : null,
-      aviso ? h("div", { class: "aviso bad", role: "alert" }, aviso) : null,
-      h("div", { class: "acciones" },
-        h("button", { class: "boton", onclick: () => iniciarSesion() }, "Iniciar sesión con la cuenta de la organización"),
-        ofrecerBasico ? h("button", { class: "boton sec", onclick: () => iniciarSesion({ basico: true }) }, "Entrar sólo con mi perfil") : null),
-      h("details", { class: "otras" }, h("summary", {}, "Abrir una carpeta local"), ...locales)));
+  document.body.removeAttribute("data-gerencia");
+  $("conectar").replaceChildren(landing({ aviso, info, ofrecerBasico, entrar: () => iniciarSesion(), entrarBasico: () => iniciarSesion({ basico: true }), extras: locales }));
 }
+
+// El frente de la persona toma el acento y la imagen de su gerencia (la del departamento de su perfil).
+function aplicarGerencia() {
+  if (fuente && fuente.tipo === "graph") document.body.setAttribute("data-gerencia", gerencia.id); else document.body.removeAttribute("data-gerencia");
+}
+// Los tableros del grupo de su gerencia van primero.
+const ordenarPorGerencia = ts => [...ts].sort((a, b) => (esGrupoDe(a.grupo, gerencia) ? 0 : 1) - (esGrupoDe(b.grupo, gerencia) ? 0 : 1));
 
 function pintarMenu() {
   const q = h("input", { type: "search", placeholder: "Buscar tablero…", "aria-label": "Buscar tablero" });
   const lista = h("div");
   const grupos = () => {
     const f = q.value.trim().toLowerCase(), por = new Map();
-    for (const t of portal.tableros) {
+    for (const t of ordenarPorGerencia(portal.tableros)) {
       if (f && !(t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f)) continue;
       const g = t.grupo || "Tableros"; if (!por.has(g)) por.set(g, []); por.get(g).push(t);
     }
@@ -153,11 +155,13 @@ async function mostrarTablero(id, { releer = true } = {}) {
 
 function portadaPortal() {
   const edad = hace(portal.generado);
+  const graph = fuente && fuente.tipo === "graph";
   return h("div", {},
-    h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
-    portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
+    graph ? heroGerencia(gerencia, usuario) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
+    !graph && portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
+    graph ? h("h3", { class: "tus-tableros" }, "Tus tableros") : null,
     h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, portal.tableros.length + (portal.tableros.length === 1 ? " tablero" : " tableros"))),
-    portal.tableros.length ? h("div", { class: "kpis" }, portal.tableros.map(t => {
+    portal.tableros.length ? h("div", { class: "kpis" }, ordenarPorGerencia(portal.tableros).map(t => {
       const m = t.meta && t.meta.modificado ? hace(t.meta.modificado) : null;
       return h("a", { class: "kpi enlace", href: hrefDe(t) },
         h("div", { class: "et" }, t.grupo || "Tableros"), h("div", { class: "val chico" }, t.titulo),
@@ -173,7 +177,7 @@ function mostrarCatalogoVacio() {
   $("conectar").hidden = true; $("marco").hidden = false;
   $("refrescar").hidden = true; $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = usuario ? "Sesión de " + usuario : "Sesión iniciada";
-  $("lateral").replaceChildren();
+  $("lateral").replaceChildren(); aplicarGerencia();
   $("contenido").replaceChildren(h("div", { class: "aviso warn", role: "alert" }, AVISO_CATALOGO));
 }
 
@@ -209,6 +213,7 @@ async function conectar(f, archivo) {
   $("cambiar").textContent = f.tipo === "graph" ? "Cerrar sesión" : "Cambiar fuente";
   $("marca").textContent = "SIT";
   $("marca-sub").textContent = f.tipo === "graph" ? (usuario ? "Sesión de " + usuario : "Sesión iniciada") : "Fuente: " + f.nombre;
+  aplicarGerencia();
   await mostrarTablero(ruta(), { releer: false });
 }
 
@@ -218,7 +223,8 @@ async function conectarSesion() {
     $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
     return;
   }
-  usuario = await yo().catch(() => "");
+  const p = await perfil().catch(() => ({}));
+  usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento);
   // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
   const id = tomarPendiente();
   if (id) {
@@ -233,13 +239,13 @@ async function conectarSesion() {
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
-  fuente = portal = null; actualId = null; usuario = "";
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL;
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
-  fuente = portal = null; actualId = null; usuario = "";
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL;
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });
