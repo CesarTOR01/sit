@@ -18,3 +18,7 @@ No lleva secretos: el inicio de sesión usa el flujo de código con PKCE de una 
 
 El sitio no lleva la ubicación del catálogo ni lo busca por nombre. La primera vez se abre con una dirección que trae el enlace en el fragmento; el sitio la usa una vez con la cuenta de la persona, guarda en el navegador sólo el id del drive y el de la carpeta, y borra el fragmento de la barra. Si el catálogo se mueve de esa carpeta, el sitio muestra un aviso y un menú vacío. El botón "Olvidar este equipo" borra lo guardado.
 
+## Los datos se leen en línea
+
+Cada vez que se abre un tablero el sitio vuelve a leer el catálogo y el archivo con `cache: "no-store"`, con el token de la persona. No guarda datos en `localStorage`, `IndexedDB` ni Cache Storage: el almacenamiento local sólo tiene punteros (id de drive y de carpeta, y la preferencia de tema). Si el permiso se retira o el catálogo se mueve, la siguiente apertura lo refleja y no se muestra ninguna copia.
+

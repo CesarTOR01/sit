@@ -13,6 +13,9 @@ const mb = n => (n / 1048576).toFixed(1) + " MB";
 
 try { const t = localStorage.getItem("tema"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (_) { /* sin almacenamiento */ }
 
+// Si el navegador restaura la página desde su memoria de navegación (atrás/adelante), se vuelve a cargar: no se muestran copias.
+addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
+
 $("salir").addEventListener("click", () => { cerrarSesion(); location.replace("index.html"); });
 
 // "2026-10-28" -> "28/10/2026"

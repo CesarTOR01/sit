@@ -11,7 +11,8 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
 async function api(ruta, init = {}, intento = 0, renovado = false) {
   const t = await token();
   let r;
-  try { r = await fetch(CONFIG.graph + ruta, { ...init, headers: { Authorization: "Bearer " + t, ...(init.headers || {}) } }); }
+  // cache:"no-store": ni se lee ni se escribe la caché HTTP del navegador; cada petición va a la fuente
+  try { r = await fetch(CONFIG.graph + ruta, { ...init, cache: "no-store", headers: { Authorization: "Bearer " + t, ...(init.headers || {}) } }); }
   catch (_) { throw new ErrorGraph("red", "No hay conexión con el servicio de archivos."); }
   if (r.status === 401 && !renovado) { await token(true); return api(ruta, init, intento, true); }
   if ((r.status === 429 || r.status === 503) && intento < 2) {
@@ -106,7 +107,7 @@ export class FuenteGraph {
     let r = null;
     if (directo && fallosDirecto < 2) {
       const ac = new AbortController(), reloj = setTimeout(() => ac.abort(), 20000);
-      try { r = await fetch(directo, { signal: ac.signal }); if (!r.ok) { r = null; fallosDirecto++; } }
+      try { r = await fetch(directo, { signal: ac.signal, cache: "no-store" }); if (!r.ok) { r = null; fallosDirecto++; } }
       catch (_) { r = null; fallosDirecto++; }
       finally { clearTimeout(reloj); }
     }

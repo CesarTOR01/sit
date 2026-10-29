@@ -115,11 +115,20 @@ function pintarMenu() {
   grupos();
 }
 
-async function mostrarTablero(id) {
+async function mostrarTablero(id, { releer = true } = {}) {
+  const c = $("contenido");
+  // cada apertura vuelve a leer el catálogo: mover el catálogo o cambiar permisos surte efecto en la siguiente apertura
+  if (releer && fuente && fuente.tipo === "graph") {
+    c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
+    try { portal = await cargarCatalogo(fuente, archivoCatalogo); }
+    catch (e) {
+      if (catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return; }
+      c.replaceChildren(h("div", { class: "aviso bad", role: "alert" }, e.message)); return;
+    }
+  }
   const t = portal.tableros.find(x => x.id === id);
   actualId = t ? t.id : null;
   pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false");
-  const c = $("contenido");
   if (!t) { c.replaceChildren(portadaPortal()); return; }
   if (t.tipo === "embebido") { location.replace(hrefDe(t)); return; }
   c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
@@ -168,26 +177,30 @@ function mostrarCatalogoVacio() {
   $("contenido").replaceChildren(h("div", { class: "aviso warn", role: "alert" }, AVISO_CATALOGO));
 }
 
+// Lee el catálogo EN LÍNEA (nunca de una copia) y, en la organización, deja sólo los tableros cuyo archivo esta
+// persona puede leer en este momento. Se llama al conectar y cada vez que se abre un tablero.
+async function cargarCatalogo(f, archivo) {
+  const { datos } = await leerJSON(archivo);
+  if (!Array.isArray(datos.tableros)) throw new Error("El catálogo no trae la lista “tableros”.");
+  const ids = new Set();
+  for (const t of datos.tableros) {
+    if (!t || typeof t.id !== "string" || typeof t.archivo !== "string" || typeof t.titulo !== "string") throw new Error("El catálogo: cada tablero necesita id, titulo y archivo.");
+    if (ids.has(t.id)) throw new Error("El catálogo: el id “" + t.id + "” está repetido.");
+    ids.add(t.id);
+  }
+  if (f.tipo === "graph") {
+    const res = await Promise.allSettled(datos.tableros.map(t => f.metadatos(t.archivo)));
+    const duro = res.find(r => r.status === "rejected" && ["red", "sin-sesion"].includes(r.reason.codigo));
+    if (duro) throw new Error(textoError(duro.reason));
+    datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
+  }
+  return datos;
+}
+
 async function conectar(f, archivo) {
   fuente = f; archivoCatalogo = archivo;
-  try {
-    const { datos } = await leerJSON(archivo);
-    if (!Array.isArray(datos.tableros)) throw new Error("El catálogo no trae la lista “tableros”.");
-    const ids = new Set();
-    for (const t of datos.tableros) {
-      if (!t || typeof t.id !== "string" || typeof t.archivo !== "string" || typeof t.titulo !== "string") throw new Error("El catálogo: cada tablero necesita id, titulo y archivo.");
-      if (ids.has(t.id)) throw new Error("El catálogo: el id “" + t.id + "” está repetido.");
-      ids.add(t.id);
-    }
-    if (f.tipo === "graph") {
-      // sólo los tableros cuyo archivo esta persona puede leer
-      const res = await Promise.allSettled(datos.tableros.map(t => f.metadatos(t.archivo)));
-      const duro = res.find(r => r.status === "rejected" && ["red", "sin-sesion"].includes(r.reason.codigo));
-      if (duro) throw new Error(textoError(duro.reason));
-      datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
-    }
-    portal = datos;
-  } catch (e) {
+  try { portal = await cargarCatalogo(f, archivo); }
+  catch (e) {
     if (f.tipo === "graph" && catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return; }
     fuente = null; mostrarConexion({ aviso: e.message }); return;
   }
@@ -196,7 +209,7 @@ async function conectar(f, archivo) {
   $("cambiar").textContent = f.tipo === "graph" ? "Cerrar sesión" : "Cambiar fuente";
   $("marca").textContent = "SIT";
   $("marca-sub").textContent = f.tipo === "graph" ? (usuario ? "Sesión de " + usuario : "Sesión iniciada") : "Fuente: " + f.nombre;
-  await mostrarTablero(ruta());
+  await mostrarTablero(ruta(), { releer: false });
 }
 
 async function conectarSesion() {
@@ -230,6 +243,8 @@ $("olvidar").addEventListener("click", async () => {
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });
+// Si el navegador restaura la página desde su memoria de navegación (atrás/adelante), se vuelve a cargar: no se muestran copias.
+addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 
 /* ---------- arranque ---------- */
 (async () => {

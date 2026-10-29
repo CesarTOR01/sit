@@ -17,13 +17,18 @@ function abrirBD() {
 async function guardar(clave, valor) {
   try {
     const bd = await abrirBD();
-    await new Promise((ok, mal) => { const t = bd.transaction(ALMACEN, "readwrite"); t.objectStore(ALMACEN).put(valor, clave); t.oncomplete = ok; t.onerror = () => mal(t.error); });
+    try { await new Promise((ok, mal) => { const t = bd.transaction(ALMACEN, "readwrite"); t.objectStore(ALMACEN).put(valor, clave); t.oncomplete = ok; t.onerror = () => mal(t.error); }); }
+    finally { bd.close(); }
   } catch (_) { /* sin almacenamiento: se vuelve a elegir la carpeta cada vez */ }
 }
+// No crea la base si no existe: con la cuenta de la organización no se usa IndexedDB.
+async function existeBD() { try { return !indexedDB.databases || (await indexedDB.databases()).some(d => d.name === BD); } catch (_) { return true; } }
 async function leerGuardado(clave) {
   try {
+    if (!(await existeBD())) return undefined;
     const bd = await abrirBD();
-    return await new Promise((ok, mal) => { const q = bd.transaction(ALMACEN).objectStore(ALMACEN).get(clave); q.onsuccess = () => ok(q.result); q.onerror = () => mal(q.error); });
+    try { return await new Promise((ok, mal) => { const q = bd.transaction(ALMACEN).objectStore(ALMACEN).get(clave); q.onsuccess = () => ok(q.result); q.onerror = () => mal(q.error); }); }
+    finally { bd.close(); }
   } catch (_) { return undefined; }
 }
 
@@ -94,7 +99,10 @@ export async function carpetaGuardada() {
   return { pendiente: async () => (await dir.requestPermission({ mode: "read" })) === "granted" ? new FuenteCarpeta(dir) : null, nombre: dir.name };
 }
 
-export async function olvidarCarpeta() { await guardar("carpeta", undefined); }
+// Borra la base entera (sólo guardaba el puntero a la carpeta local elegida, nunca datos).
+export async function olvidarCarpeta() {
+  try { await new Promise(r => { const q = indexedDB.deleteDatabase(BD); q.onsuccess = q.onerror = q.onblocked = () => r(); }); } catch (_) { /* sin almacenamiento */ }
+}
 
 export async function sha256(buf) {
   const h = await crypto.subtle.digest("SHA-256", buf);
