@@ -7,7 +7,7 @@ const BASE = {
   autoridad: "https://login.microsoftonline.com/5d9855c7-56a4-4456-b63f-4b78d8c8a338/oauth2/v2.0/",
   graph: "https://graph.microsoft.com/v1.0/",
   // alcances delegados: lectura de los archivos que la persona ya puede ver
-  alcances: ["openid", "profile", "offline_access", "User.Read", "Files.Read.All"],
+  alcances: ["openid", "profile", "offline_access", "User.Read", "Files.Read"],
   alcancesBasicos: ["openid", "profile", "offline_access", "User.Read"],
   catalogo: "sit-catalogo.json",
   redirect: null, // por omisión: la carpeta de index.html, con "/" final
