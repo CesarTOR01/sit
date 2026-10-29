@@ -19,7 +19,12 @@ import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos } from "./auth.js";
-import { abrirCatalogo, yo, textoError, olvidarUbicacion } from "./graph.js";
+import { abrirCatalogo, yo, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+
+// Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
+// hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
+let enlaceInvalido = false;
+{ const id = tomarEnlaceDelFragmento(); if (id) dejarPendiente(id); else if (id === null) enlaceInvalido = true; }
 
 const $ = id => document.getElementById(id);
 const VIGENCIA_H = 36;
@@ -41,7 +46,7 @@ $("menu-btn").addEventListener("click", () => { const a = $("lateral").classList
 /* ---------- lectura con control ---------- */
 async function leerJSON(ruta, esperado) {
   let buf;
-  try { buf = await fuente.leer(ruta); } catch (e) { throw new Error(textoError(e)); }
+  try { buf = await fuente.leer(ruta); } catch (e) { const err = new Error(textoError(e)); err.origen = e; throw err; }
   let sello = "sin";
   if (esperado) {
     const real = await sha256(buf);
@@ -64,9 +69,12 @@ function hace(iso) {
 const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) : "#/" + encodeURIComponent(t.id);
 
 /* ---------- pantallas ---------- */
-function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false } = {}) {
+const actualizarOlvidar = () => { $("olvidar").hidden = !(leerUbicacion() || haySesion() || hayPendiente()); };
+
+function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false, info = null } = {}) {
   $("marco").hidden = true; $("conectar").hidden = false;
   $("refrescar").hidden = $("cambiar").hidden = true;
+  actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = "Sistema de Información Tornel";
   const url = h("input", { type: "url", id: "url", placeholder: "http://localhost:8000/carpeta/", "aria-label": "Dirección base" });
   const porURL = () => { try { conectar(new FuenteURL(url.value.trim()), "portal.json"); } catch (e) { mostrarConexion({ aviso: e.message }); } };
@@ -82,6 +90,7 @@ function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false
   $("conectar").replaceChildren(
     h("section", { class: "tarjeta" }, h("h2", { class: "sin-margen" }, "Inicia sesión"),
       h("p", {}, "SIT lee los tableros con tus propios permisos: sólo verás los que tu cuenta de la organización puede abrir. Esta página no guarda cifras ni datos."),
+      info ? h("p", { class: "aviso warn" }, info) : null,
       aviso ? h("div", { class: "aviso bad", role: "alert" }, aviso) : null,
       h("div", { class: "acciones" },
         h("button", { class: "boton", onclick: () => iniciarSesion() }, "Iniciar sesión con la cuenta de la organización"),
@@ -149,6 +158,16 @@ function portadaPortal() {
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 
+// El catálogo ya no está donde se guardó: menú vacío y un aviso neutro, nada más (ni dónde estaba ni por qué).
+function mostrarCatalogoVacio() {
+  portal = null; actualId = null;
+  $("conectar").hidden = true; $("marco").hidden = false;
+  $("refrescar").hidden = true; $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; actualizarOlvidar();
+  $("marca").textContent = "SIT"; $("marca-sub").textContent = usuario ? "Sesión de " + usuario : "Sesión iniciada";
+  $("lateral").replaceChildren();
+  $("contenido").replaceChildren(h("div", { class: "aviso warn", role: "alert" }, AVISO_CATALOGO));
+}
+
 async function conectar(f, archivo) {
   fuente = f; archivoCatalogo = archivo;
   try {
@@ -168,9 +187,12 @@ async function conectar(f, archivo) {
       datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
     }
     portal = datos;
-  } catch (e) { fuente = null; mostrarConexion({ aviso: e.message }); return; }
+  } catch (e) {
+    if (f.tipo === "graph" && catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return; }
+    fuente = null; mostrarConexion({ aviso: e.message }); return;
+  }
   $("conectar").hidden = true; $("marco").hidden = false;
-  $("refrescar").hidden = $("cambiar").hidden = false;
+  $("refrescar").hidden = $("cambiar").hidden = false; actualizarOlvidar();
   $("cambiar").textContent = f.tipo === "graph" ? "Cerrar sesión" : "Cambiar fuente";
   $("marca").textContent = "SIT";
   $("marca-sub").textContent = f.tipo === "graph" ? (usuario ? "Sesión de " + usuario : "Sesión iniciada") : "Fuente: " + f.nombre;
@@ -183,21 +205,35 @@ async function conectarSesion() {
     $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
     return;
   }
-  try { usuario = await yo().catch(() => ""); fuente = await abrirCatalogo(); }
-  catch (e) { mostrarConexion({ aviso: textoError(e) }); return; }
+  usuario = await yo().catch(() => "");
+  // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
+  const id = tomarPendiente();
+  if (id) {
+    try { await configurarDesdeEnlace(id); }
+    catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
+  }
+  try { fuente = await abrirCatalogo(); }
+  catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
   await conectar(fuente, CONFIG.catalogo);
 }
 
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
-  if (fuente && fuente.tipo === "graph" || haySesion()) { cerrarSesion(); olvidarUbicacion(); } else await olvidarCarpeta();
+  if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
   fuente = portal = null; actualId = null; usuario = "";
   history.replaceState(null, "", location.pathname); mostrarConexion();
+});
+// Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
+$("olvidar").addEventListener("click", async () => {
+  olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
+  fuente = portal = null; actualId = null; usuario = "";
+  history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });
 
 /* ---------- arranque ---------- */
 (async () => {
+  if (enlaceInvalido && !haySesion()) { mostrarConexion({ aviso: "El enlace no es válido; pide uno nuevo." }); return; }
   const ret = await procesarRetorno();
   if (ret && ret.error) { mostrarConexion({ aviso: textoError(ret.error), ofrecerBasico: ret.error.codigo === "consentimiento" && !ret.basicoIntentado }); return; }
   if (ret && ret.volver) {
@@ -208,6 +244,7 @@ addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });
   const base = new URLSearchParams(location.search).get("fuente");
   if (base && ["localhost", "127.0.0.1"].includes(location.hostname)) { try { await conectar(new FuenteURL(base), "portal.json"); } catch (e) { mostrarConexion({ aviso: e.message }); } return; }
   if (haySesion()) { await conectarSesion(); return; }
+  if (hayPendiente()) { mostrarConexion({ info: "Para abrir SIT con este enlace, inicia sesión con tu cuenta de la organización." }); return; }
   let guardada = null;
   try { guardada = await carpetaGuardada(); } catch (_) { /* sin carpeta guardada */ }
   if (guardada && guardada.fuente) await conectar(guardada.fuente, "portal.json");

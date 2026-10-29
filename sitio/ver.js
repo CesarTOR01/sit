@@ -2,7 +2,7 @@
 // El marco usa sandbox="allow-scripts" sin allow-same-origin: el tablero no alcanza el token ni el almacenamiento.
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
-import { abrirCatalogo, yo, textoError, olvidarUbicacion } from "./graph.js";
+import { abrirCatalogo, yo, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 
@@ -13,7 +13,7 @@ const mb = n => (n / 1048576).toFixed(1) + " MB";
 
 try { const t = localStorage.getItem("tema"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (_) { /* sin almacenamiento */ }
 
-$("salir").addEventListener("click", () => { cerrarSesion(); olvidarUbicacion(); location.replace("index.html"); });
+$("salir").addEventListener("click", () => { cerrarSesion(); location.replace("index.html"); });
 
 // "2026-10-28" -> "28/10/2026"
 const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
@@ -28,7 +28,9 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     const fuente = await abrirCatalogo();
     $("salir").hidden = false;
     yo().then(n => { if (n) $("sub").textContent = "Sesión de " + n; }).catch(() => {});
-    const cat = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo)));
+    let cat;
+    try { cat = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo))); }
+    catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
     if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
     const t = cat.tableros.find(x => x && x.id === id);
     if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }

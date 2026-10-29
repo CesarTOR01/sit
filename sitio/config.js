@@ -1,6 +1,6 @@
 // Configuración pública del sitio. Los identificadores de aplicación y de inquilino no son secretos: sin una sesión
-// válida el sitio no puede leer nada. Ninguna ruta ni nombre de tablero va aquí: el catálogo se localiza por nombre de
-// archivo, con los permisos de quien inicia sesión.
+// válida el sitio no puede leer nada. Ninguna ruta ni nombre de tablero va aquí: la carpeta del catálogo se entrega en el
+// fragmento de la dirección, se resuelve una vez con la cuenta de la persona y sólo se guardan los ids en su navegador.
 const BASE = {
   tenant: "5d9855c7-56a4-4456-b63f-4b78d8c8a338",
   cliente: "f295956c-7666-4730-9052-db3bf9c85fab",

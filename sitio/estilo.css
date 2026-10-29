@@ -175,3 +175,5 @@ body.pagina-ver .banda { flex: none; }
 .ver-estado progress { width: 100%; height: 10px; accent-color: var(--accion); }
 #marco { flex: 1 1 auto; width: 100%; border: 0; background: #fff; min-height: calc(100vh - 56px); }
 @media (max-width: 860px) { body.pagina-ver .banda-in { height: auto; min-height: 56px; flex-wrap: wrap; padding: 8px 0; row-gap: 6px; } body.pagina-ver .banda .espacio { display: none; } }
+
+nav.lateral:empty { display: none; }
