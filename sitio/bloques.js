@@ -43,7 +43,7 @@ function tarjeta(it) {
   if (cambio.length) pie.push(h("div", { class: "pie-l" }, cambio));
   if (metas.length) pie.push(h("div", { class: "pie-l" }, metas.join(" · ")));
   return h("div", { class: "kpi " + estadoDe(it) },
-    h("div", { class: "et-fila" }, h("div", { class: "et" }, it.etiqueta || ""), pastilla(estadoDe(it))),
+    h("div", { class: "et-fila" }, h("div", { class: "et" }, it.etiqueta || ""), (it.valor == null ? h("span", { class: "estado-celda na" }, "Sin dato") : pastilla(estadoDe(it)))),
     h("div", { class: "val" + (it.valor == null ? " na" : "") }, fmt(it.valor, it.formato, it.unidad)),
     h("div", { class: "pie" }, pie),
     Array.isArray(it.detalle) && it.detalle.length ? detalle(it) : null);

@@ -274,3 +274,4 @@ th { font-size: 13px; }
 [data-gerencia="regulatorios"] { --acento: color-mix(in srgb, var(--s1) 55%, var(--s7)); }
 [data-gerencia="control"] { --acento: var(--tinta2); }
 .g-palomita-b { fill: none; stroke: var(--tarjeta); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.estado-celda.na { background: var(--na-bg); color: var(--tinta2); }
