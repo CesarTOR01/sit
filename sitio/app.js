@@ -90,7 +90,7 @@ function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false
     h("label", { class: "boton sec bloque" }, "Elegir carpeta", h("input", { type: "file", webkitdirectory: true, hidden: true, onchange: e => e.target.files.length && conectar(new FuenteArchivos(e.target.files), "portal.json") }))));
   if (["localhost", "127.0.0.1"].includes(location.hostname)) locales.push(h("div", { class: "opcion" }, h("h4", {}, "Dirección local"), h("p", {}, "Una dirección en este equipo que sirva ", h("code", {}, "portal.json"), "."), url, h("button", { class: "boton sec", onclick: porURL }, "Conectar")));
   document.body.removeAttribute("data-gerencia");
-  $("conectar").replaceChildren(landing({ aviso, info, ofrecerBasico, entrar: () => iniciarSesion(), entrarBasico: () => iniciarSesion({ basico: true }), extras: locales }));
+  $("conectar").replaceChildren(landing({ aviso, info, ofrecerBasico, entrar: () => iniciarSesion(), entrarBasico: () => iniciarSesion({ basico: true }), extras: ["localhost", "127.0.0.1"].includes(location.hostname) ? locales : [] }));
 }
 
 // El frente de la persona toma el acento y la imagen de su gerencia (la del departamento de su perfil).

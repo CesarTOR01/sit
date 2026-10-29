@@ -1,5 +1,5 @@
 // Landing de SIT: la primera pantalla. Es pública, así que no nombra tableros ni lleva cifras: sólo explica qué es,
-// pide iniciar sesión con la cuenta de Tornel y enseña una vista de muestra abstracta de cómo se leen los tableros.
+// pide iniciar sesión con la cuenta de Tornel y deja una ilustración. Sin textos explicativos.
 import { h, s } from "./comun.js";
 
 // Ilustración mínima de farma veterinaria: un frasco con una huella. Una sola tinta (el acento), mucho aire.
@@ -26,16 +26,11 @@ export function landing({ aviso = null, info = null, ofrecerBasico = false, entr
     h("section", { class: "landing-hero" },
       h("div", { class: "landing-texto" },
         h("h1", { class: "landing-titulo" }, "Los tableros de Tornel, en un solo lugar"),
-        h("p", { class: "landing-sub" }, "Entra con tu cuenta de Tornel y SIT te muestra los tableros que esa cuenta puede abrir, con los datos al día."),
         info ? h("p", { class: "aviso warn" }, info) : null,
         aviso ? h("div", { class: "aviso bad", role: "alert" }, aviso) : null,
         h("div", { class: "acciones" },
           h("button", { class: "boton grande", onclick: entrar }, "Iniciar sesión con tu cuenta de Tornel"),
-          ofrecerBasico ? h("button", { class: "boton sec grande", onclick: entrarBasico }, "Entrar sólo con mi perfil") : null),
-        h("ul", { class: "landing-notas" },
-          h("li", {}, "Tu cuenta decide qué ves: si no tienes permiso sobre un tablero, no aparece."),
-          h("li", {}, "Los datos se leen cada vez que abres un tablero; no se guardan en este navegador."),
-          h("li", {}, "Funciona en el navegador, sin instalar nada."))),
+          ofrecerBasico ? h("button", { class: "boton sec grande", onclick: entrarBasico }, "Entrar sólo con mi perfil") : null)),
       h("div", { class: "landing-imagen" }, ilustracionLanding())),
     extras.length ? h("details", { class: "otras" }, h("summary", {}, "Abrir una carpeta local"), ...extras) : null);
 }

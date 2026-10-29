@@ -179,20 +179,16 @@ body.pagina-ver .banda { flex: none; }
 nav.lateral:empty { display: none; }
 
 /* landing de inicio de sesión */
-.landing { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; }
+.landing { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; min-height: calc(100vh - 120px); display: flex; flex-direction: column; justify-content: center; }
 .landing-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: center; }
-.landing-titulo { margin: 0 0 14px; font-size: clamp(28px, 3.7vw, 42px); line-height: 1.12; font-weight: 700; letter-spacing: -.01em; }
-.landing-sub { margin: 0 0 24px; font-size: 18px; line-height: 1.5; color: var(--tinta2); max-width: 34em; }
+.landing-titulo { margin: 0 0 14px; font-size: clamp(32px, 4.6vw, 54px); line-height: 1.1; font-weight: 700; letter-spacing: -.01em; }
 .boton.grande { padding: 13px 24px; font-size: 16px; font-weight: 600; }
-.landing .acciones { margin: 8px 0 28px; }
-.landing-notas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 34em; }
-.landing-notas li { padding-left: 16px; border-left: 3px solid var(--linea); color: var(--tinta2); line-height: 1.45; }
+.landing .acciones { margin: 28px 0 0; }
 .landing details.otras { margin-top: 56px; max-width: 760px; }
 
 @media (max-width: 860px) {
   .landing { padding: 32px 16px 24px; }
   .landing-hero { grid-template-columns: 1fr; gap: 32px; }
-  .landing-sub { font-size: 16px; }
   .boton.grande { width: 100%; }
 }
 
