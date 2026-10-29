@@ -3,7 +3,7 @@
 // fragmento de la dirección, se resuelve una vez con la cuenta de la persona y sólo se guardan los ids en su navegador.
 const BASE = {
   tenant: "5d9855c7-56a4-4456-b63f-4b78d8c8a338",
-  cliente: "f295956c-7666-4730-9052-db3bf9c85fab",
+  cliente: "9d8ec9f1-9ae8-42c8-8031-40c64434d7f7",
   autoridad: "https://login.microsoftonline.com/5d9855c7-56a4-4456-b63f-4b78d8c8a338/oauth2/v2.0/",
   graph: "https://graph.microsoft.com/v1.0/",
   // alcances delegados: lectura de los archivos que la persona ya puede ver
