@@ -28,7 +28,7 @@ export function grafica(b, tipo) {
     tabla.hidden = !tabla.hidden; lienzo.hidden = !tabla.hidden;
     alterna.setAttribute("aria-pressed", String(!tabla.hidden)); alterna.textContent = tabla.hidden ? "Ver tabla" : "Ver gráfica";
   } }, "Ver tabla");
-  const ley = series.length > 1 || series[0].nombre
+  const ley = series.length > 1
     ? h("div", { class: "leyenda" }, series.map((sr, k) => h("span", {}, h("i", { class: "c" + ((k % 8) + 1) + (tipo === "linea" ? " linea" : "") }), sr.nombre || "serie " + (k + 1)))) : null;
 
   let ancho = 0;
@@ -80,7 +80,7 @@ function construir(b, tipo, W, x, series) {
       let d = "", abierto = false;
       sr.valores.forEach((v, i) => { if (!esNumero(v)) { abierto = false; return; } d += (abierto ? "L" : "M") + px(i).toFixed(1) + " " + py(v).toFixed(1); abierto = true; });
       svg.append(s("path", { d, fill: "none", stroke: color(k), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-      if (x.length <= 24) sr.valores.forEach((v, i) => { if (esNumero(v)) svg.append(s("circle", { class: "punto", cx: px(i), cy: py(v), r: 4, fill: color(k) })); });
+      sr.valores.forEach((v, i) => { if (esNumero(v)) svg.append(s("circle", { class: "punto", cx: px(i), cy: py(v), r: 4, fill: color(k), visibility: "hidden", "data-i": i })); });
     });
   }
 
@@ -89,7 +89,7 @@ function construir(b, tipo, W, x, series) {
   const caja = h("div", { class: "graf-rel" }, svg, tip);
   function mostrar(i) {
     const cx = px(i);
-    guia.setAttribute("visibility", "visible");
+    guia.setAttribute("visibility", "visible"); puntos(i);
     guia.setAttribute("x", tipo === "barras" ? cx - paso / 2 : cx - .5);
     tip.replaceChildren(h("div", { class: "tip-x" }, x[i]), ...series.map((sr, k) => h("div", { class: "tip-fila" },
       h("i", { class: "c" + ((k % 8) + 1) + " linea" }), h("strong", {}, fmt(sr.valores[i], b.formato, b.unidad)), h("span", {}, sr.nombre || ""))));
@@ -98,7 +98,9 @@ function construir(b, tipo, W, x, series) {
     tip.style.left = Math.max(0, Math.min(W - ancho, cx + 12 + ancho > W ? cx - ancho - 12 : cx + 12)) + "px";
     tip.style.top = Math.max(0, Math.min(H - alto, T + 8)) + "px";
   }
-  function ocultar() { guia.setAttribute("visibility", "hidden"); tip.hidden = true; }
+  // los puntos sólo aparecen en la posición bajo el puntero o el foco
+  function puntos(i) { svg.querySelectorAll(".punto").forEach(p => p.setAttribute("visibility", Number(p.getAttribute("data-i")) === i ? "visible" : "hidden")); }
+  function ocultar() { guia.setAttribute("visibility", "hidden"); tip.hidden = true; puntos(-1); }
   x.forEach((et, i) => {
     const zona = s("rect", { class: "zona", x: px(i) - paso / 2, y: T, width: paso, height: H - T - B, tabindex: 0, "aria-label": et + ": " + series.map(sr => (sr.nombre || "") + " " + fmt(sr.valores[i], b.formato, b.unidad)).join(", ") });
     zona.addEventListener("pointerenter", () => mostrar(i));

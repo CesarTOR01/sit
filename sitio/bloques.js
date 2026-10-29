@@ -24,19 +24,26 @@ function detalle(it) {
     esNumero(d.meta) ? h("span", { class: "meta-det" }, "meta " + fmt(d.meta, d.formato || it.formato, d.unidad || it.unidad)) : null)));
 }
 
+const TEXTO_ESTADO = { ok: "Cumple", warn: "Aceptable", bad: "No cumple" };
+function pastilla(e) { return TEXTO_ESTADO[e] ? h("span", { class: "estado-celda " + e }, TEXTO_ESTADO[e]) : null; }
+
 function tarjeta(it) {
-  const pie = [];
+  // el pie va en dos renglones fijos: el cambio contra otro periodo, y la meta con su nivel aceptable
+  const cambio = [], metas = [];
   if (esNumero(it.valor) && it.comparacion && esNumero(it.comparacion.valor) && it.comparacion.valor !== 0) {
     const d = (it.valor - it.comparacion.valor) / Math.abs(it.comparacion.valor);
     const bueno = it.sentido === "menor" ? d <= 0 : d >= 0;
-    pie.push(h("span", { class: "delta " + (d === 0 ? "na" : bueno ? "ok" : "bad") }, (d > 0 ? "▲ " : d < 0 ? "▼ " : "") + fmt(Math.abs(d), "pct")));
-    pie.push(h("span", {}, "vs " + (it.comparacion.etiqueta || "antes") + ": " + fmt(it.comparacion.valor, it.formato, it.unidad)));
+    cambio.push(h("span", { class: "delta " + (d === 0 ? "na" : bueno ? "ok" : "bad") }, (d > 0 ? "▲ " : d < 0 ? "▼ " : "") + fmt(Math.abs(d), "pct")));
+    cambio.push(h("span", {}, "vs " + (it.comparacion.etiqueta || "antes") + ": " + fmt(it.comparacion.valor, it.formato, it.unidad)));
   }
-  if (esNumero(it.meta)) pie.push(h("span", {}, "meta " + fmt(it.meta, it.formato, it.unidad)));
-  if (esNumero(it.aceptable)) pie.push(h("span", {}, "aceptable " + fmt(it.aceptable, it.formato, it.unidad)));
-  if (it.nota) pie.push(h("span", {}, it.nota));
+  if (esNumero(it.meta)) metas.push("meta " + fmt(it.meta, it.formato, it.unidad));
+  if (esNumero(it.aceptable)) metas.push("aceptable " + fmt(it.aceptable, it.formato, it.unidad));
+  if (it.nota) metas.push(it.nota);
+  const pie = [];
+  if (cambio.length) pie.push(h("div", { class: "pie-l" }, cambio));
+  if (metas.length) pie.push(h("div", { class: "pie-l" }, metas.join(" · ")));
   return h("div", { class: "kpi " + estadoDe(it) },
-    h("div", { class: "et" }, it.etiqueta || ""),
+    h("div", { class: "et-fila" }, h("div", { class: "et" }, it.etiqueta || ""), pastilla(estadoDe(it))),
     h("div", { class: "val" + (it.valor == null ? " na" : "") }, fmt(it.valor, it.formato, it.unidad)),
     h("div", { class: "pie" }, pie),
     Array.isArray(it.detalle) && it.detalle.length ? detalle(it) : null);

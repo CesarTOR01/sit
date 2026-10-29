@@ -44,7 +44,7 @@ a { color: var(--accion); }
 
 /* estructura */
 .marco { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px; align-items: start; }
-nav.lateral { background: var(--tarjeta); border-radius: 14px; border: 1px solid var(--linea); padding: 10px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+nav.lateral { background: var(--tarjeta); border-radius: 14px; border: 1px solid var(--linea); padding: 10px; position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow: auto; }
 nav.lateral h2 { font-size: 12px; font-weight: 700; color: var(--tinta2); margin: 14px 8px 4px; }
 nav.lateral a { display: block; padding: 7px 10px; border-radius: 10px; color: var(--tinta); text-decoration: none; }
 nav.lateral a:hover { background: var(--fondo); }
@@ -126,7 +126,6 @@ i.linea { width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; 
 .sin-margen { margin-top: 0; }
 .relleno { padding: 8px; }
 .kpi.enlace { text-decoration: none; color: inherit; display: block; }
-.kpi.enlace:hover { box-shadow: 0 2px 8px rgba(15, 23, 42, .18); }
 .kpi .val.chico { font-size: 18px; }
 .pie-pagina { text-align: center; color: var(--tinta2); font-size: 12px; padding: 8px 16px 24px; }
 code { font-family: var(--mono); font-size: 12px; }
@@ -157,7 +156,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .franja { position: relative; display: flex; gap: 2px; height: 10px; margin-top: 8px; }
 .franja .tramo { height: 100%; flex-basis: 0; border-radius: 3px; background: var(--na-bg); }
 .franja .tramo.ok { background: var(--ok); } .franja .tramo.warn { background: var(--warn); } .franja .tramo.bad { background: var(--bad); }
-.franja .marca { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--tinta); box-shadow: 0 0 0 2px var(--tarjeta); }
+.franja .marca { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--tinta); outline: 2px solid var(--tarjeta); }
 .detalle { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--linea); font-size: 12px; }
 .detalle li { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; }
 .detalle li > span:first-child { flex: 1; color: var(--tinta2); }
@@ -169,17 +168,17 @@ code { font-family: var(--mono); font-size: 12px; }
 details.otras { border-top: 1px solid var(--linea); padding-top: 12px; }
 details.otras > summary { cursor: pointer; color: var(--accion); font-weight: 600; }
 .chip-banda { border: 1px solid rgba(255, 255, 255, .45); border-radius: 999px; padding: 3px 12px; font-size: 12px; background: rgba(255, 255, 255, .12); color: #fff; white-space: nowrap; }
-body.pagina-ver { display: flex; flex-direction: column; min-height: 100vh; }
+body.pagina-ver { display: flex; flex-direction: column; min-height: 100dvh; }
 body.pagina-ver .banda { flex: none; }
 .ver-estado { max-width: 760px; width: 100%; margin: 24px auto; padding: 0 16px; }
 .ver-estado progress { width: 100%; height: 10px; accent-color: var(--accion); }
-#marco { flex: 1 1 auto; width: 100%; border: 0; background: #fff; min-height: calc(100vh - 56px); }
+#marco { flex: 1 1 auto; width: 100%; border: 0; background: #fff; min-height: calc(100dvh - 56px); }
 @media (max-width: 860px) { body.pagina-ver .banda-in { height: auto; min-height: 56px; flex-wrap: wrap; padding: 8px 0; row-gap: 6px; } body.pagina-ver .banda .espacio { display: none; } }
 
 nav.lateral:empty { display: none; }
 
 /* landing de inicio de sesión */
-.landing { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; min-height: calc(100vh - 120px); display: flex; flex-direction: column; justify-content: center; }
+.landing { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; min-height: calc(100dvh - 120px); display: flex; flex-direction: column; justify-content: center; }
 .landing-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: center; }
 .landing-titulo { margin: 0 0 14px; font-size: clamp(32px, 4.6vw, 54px); line-height: 1.1; font-weight: 700; letter-spacing: -.01em; }
 .boton.grande { padding: 13px 24px; font-size: 16px; font-weight: 600; }
@@ -241,3 +240,34 @@ nav.lateral a[aria-current="page"] { background: var(--acento); }
 .banda .pastilla:hover { background: var(--fondo); }
 .chip-banda { border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta2); }
 .g-anillo { fill: none; stroke: var(--acento); stroke-opacity: .32; stroke-width: 1.5; }
+
+/* pasada de diseño con ui-ux-pro-max y design-taste-frontend (pantallas de trabajo) */
+.et-fila { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.et-fila .estado-celda { flex: none; white-space: nowrap; }
+.kpi, .kpi.ok, .kpi.warn, .kpi.bad { border-left: 1px solid var(--linea); }
+.kpi .et { font-size: 14px; }
+.kpi .val { font-size: 26px; font-weight: 600; }
+.kpi .val.chico { font-size: 18px; }
+nav.lateral { background: transparent; border: 0; padding: 0; }
+nav.lateral a[aria-current="page"] { background: var(--linea); color: var(--tinta); font-weight: 600; }
+th { color: var(--tinta2); font-weight: 500; }
+.hero-gerencia { grid-template-columns: minmax(0, 1fr) minmax(0, 260px); padding: 14px 20px; }
+.hero-nombre { font-size: clamp(24px, 3vw, 28px); font-weight: 600; }
+.hero-lema { font-size: 16px; }
+.g-arte { max-height: 140px; }
+:focus-visible { outline: 2px solid var(--accion); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.chip { color: var(--tinta2); font-size: 13px; }
+.chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+.kpi .pie, .detalle { font-size: 13px; }
+th { font-size: 13px; }
+.kpis { align-items: stretch; }
+.kpi { display: flex; flex-direction: column; }
+.kpi .pie { margin-top: auto; padding-top: 4px; }
+@media (max-width: 860px) { .marco { padding: 16px; } .landing { padding-left: 16px; padding-right: 16px; } }
+.kpi:has(.detalle) { grid-column: 1 / -1; }
+.kpi:has(.detalle) .detalle { display: flex; flex-wrap: wrap; gap: 4px 28px; }
+.kpi:has(.detalle) .detalle li { gap: 10px; }
+.kpi .pie { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+.pie-l { display: flex; flex-wrap: wrap; gap: 0 8px; }
