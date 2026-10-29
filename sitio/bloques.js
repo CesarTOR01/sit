@@ -102,7 +102,7 @@ function tabla(b) {
     }
     cuerpo.replaceChildren(...v.slice(0, est.limite).map(f => h("tr", {}, cols.map((c, i) => {
       const x = f[i];
-      if (c.formato === "estado") { const e = estadoValido(x) || "na"; return h("td", {}, h("span", { class: "estado-celda " + e }, ({ ok: "Cumple", warn: "Aceptable", bad: "No cumple", na: "NA" })[e])); }
+      if (c.formato === "estado") { const e = estadoValido(x) || "na"; return h("td", {}, h("span", { class: "estado-celda " + e }, ({ ok: "Cumple", warn: "Aceptable", bad: "No cumple", na: "NA", ...(c.etiquetas || {}) })[e])); }
       return h("td", { class: NUM.has(c.formato) || c.unidad ? "num" : "" }, fmt(x, c.formato, c.unidad));
     }))));
     mas.hidden = v.length <= est.limite;

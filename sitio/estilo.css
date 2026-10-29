@@ -266,8 +266,11 @@ th { font-size: 13px; }
 .kpi { display: flex; flex-direction: column; }
 .kpi .pie { margin-top: auto; padding-top: 4px; }
 @media (max-width: 860px) { .marco { padding: 16px; } .landing { padding-left: 16px; padding-right: 16px; } }
-.kpi:has(.detalle) { grid-column: 1 / -1; }
-.kpi:has(.detalle) .detalle { display: flex; flex-wrap: wrap; gap: 4px 28px; }
+.kpi:has(.detalle) { grid-column: span 2; }
+.kpi:has(.detalle) .detalle { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 2px 20px; }
 .kpi:has(.detalle) .detalle li { gap: 10px; }
 .kpi .pie { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
 .pie-l { display: flex; flex-wrap: wrap; gap: 0 8px; }
+[data-gerencia="regulatorios"] { --acento: color-mix(in srgb, var(--s1) 55%, var(--s7)); }
+[data-gerencia="control"] { --acento: var(--tinta2); }
+.g-palomita-b { fill: none; stroke: var(--tarjeta); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }

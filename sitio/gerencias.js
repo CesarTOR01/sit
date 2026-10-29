@@ -7,7 +7,9 @@ import { h, s } from "./comun.js";
 const GERENCIAS = [
   { id: "comercial", nombre: "Comercial", lema: "Venta, clientes y mercados", claves: ["comercial", "ventas", "mercadotecnia", "marketing", "exportacion"] },
   { id: "operaciones", nombre: "Operaciones", lema: "Producción y planta", claves: ["operaciones", "produccion", "planta", "manufactura", "mantenimiento"] },
-  { id: "calidad", nombre: "Calidad", lema: "Liberación y cumplimiento", claves: ["calidad", "aseguramiento", "regulatorio", "validacion", "laboratorio"] },
+  { id: "regulatorios", nombre: "Asuntos Regulatorios", lema: "Registros y cumplimiento regulatorio", claves: ["asuntos regulatorios", "regulatorio", "registros sanitarios"] },
+  { id: "control", nombre: "Control y SGE", lema: "Control, cumplimiento y gestión", claves: ["control y sge", "sge", "control y cumplimiento"] },
+  { id: "calidad", nombre: "Calidad", lema: "Liberación y cumplimiento", claves: ["calidad", "aseguramiento", "validacion", "laboratorio"] },
   { id: "finanzas", nombre: "Finanzas", lema: "Resultados, costos y cartera", claves: ["finanzas", "contabilidad", "tesoreria", "costos", "administracion", "cobranza"] },
   { id: "compras", nombre: "Compras", lema: "Abasto y proveedores", claves: ["compras", "abasto", "abastecimiento", "logistica", "almacen"] },
   { id: "planeacion", nombre: "Planeación", lema: "Plan, demanda y cobertura", claves: ["planeacion", "planificacion", "cadena de suministro", "supply", "demanda"] },
@@ -24,7 +26,8 @@ export function gerenciaDe(departamento) {
   if (t.trim() === "") return GENERAL;
   return GERENCIAS.find(g => g.claves.some(c => t.includes(c.length <= 2 ? " " + c + " " : c))) || GENERAL;
 }
-export const esGrupoDe = (grupo, g) => g !== GENERAL && sinAcentos(grupo) === sinAcentos(g.nombre);
+// un grupo del catálogo es de la gerencia de la persona si su nombre se reconoce como esa gerencia
+export const esGrupoDe = (grupo, g) => g !== GENERAL && gerenciaDe(grupo).id === g.id;
 export const todasLasGerencias = () => [...GERENCIAS, GENERAL];
 
 /* ---- ilustraciones (viewBox 0 0 320 180) ---- */
@@ -43,6 +46,13 @@ const ARTE = {
     r(16, 128, 288, 14, "g-tenue", 7), ...[40, 100, 160, 220, 280].map(x => c(x, 150, 6, "g-tenue")),
     ...[0, 1, 2, 3, 4].map(i => [r(34 + i * 52, 84, 28, 44, i === 2 ? "g-acento" : "g-suave", 8), r(39 + i * 52, 74, 18, 12, "g-tenue", 3), r(34 + i * 52, 104, 28, 24, i === 2 ? "g-acento" : "g-suave", 8)]).flat(),
     c(262, 46, 26, "g-suave"), c(262, 46, 34, "g-engrane"), c(262, 46, 10, "g-fondo")],
+  regulatorios: () => [
+    r(96, 20, 120, 142, "g-contorno", 8), r(112, 42, 64, 8, "g-suave", 4), r(112, 60, 88, 8, "g-suave", 4), r(112, 78, 76, 8, "g-suave", 4), r(112, 96, 88, 8, "g-suave", 4),
+    c(206, 126, 30, "g-acento"), c(206, 126, 22, "g-fondo"), p("M194 126 l9 10 l17 -20", "g-palomita"),
+    p("M190 150 l-8 22 l16 -8 l8 10 l4 -24 z", "g-acento"), p("M222 150 l8 22 l-16 -8 l-8 10 l-4 -24 z", "g-suave")],
+  control: () => [
+    c(110, 104, 62, "g-contorno"), p("M56 104 A54 54 0 0 1 164 104", "g-ruta"), l(110, 104, 142, 64, "g-mango"), c(110, 104, 9, "g-acento"),
+    ...[0, 1, 2].map(i => [r(196, 40 + i * 40, 22, 22, "g-acento", 5), p(`M${201} ${51 + i * 40} l5 6 l9 -11`, "g-palomita-b"), r(226, 46 + i * 40, 76, 10, "g-suave", 5)]).flat()],
   calidad: () => [
     p("M96 24 h44 v40 l40 76 a10 10 0 0 1 -9 15 h-106 a10 10 0 0 1 -9 -15 l40 -76 z", "g-contorno"),
     p("M66 120 l16 -30 h74 l16 30 l8 20 a8 8 0 0 1 -7 11 h-108 a8 8 0 0 1 -7 -11 z", "g-acento"),
