@@ -70,10 +70,13 @@ export function aUbicacion(valor) {
   if (u.protocol !== "https:" || !/^[a-z0-9-]+(-my)?\.sharepoint\.com$/i.test(u.hostname)) return null;
   // la carpeta puede venir como parámetro "id" (vista de biblioteca) o en la ruta de la dirección
   let carpeta = u.searchParams.get("id") || safeDecode(u.pathname);
+  // "Copiar vínculo" a veces da /:f:/r/<ruta>: esa forma lleva la ruta de la carpeta; /:f:/g/ y /:f:/s/ llevan un código de uso compartido
+  const r = /^\/:[a-z]:\/r\/(.+)$/i.exec(carpeta);
+  if (r) carpeta = r[1];
   carpeta = "/" + carpeta.split("/").filter(Boolean).join("/");
   const partes = carpeta.split("/").filter(Boolean);
   if (partes.length && partes[partes.length - 1].toLowerCase() === CONFIG.catalogo.toLowerCase()) partes.pop();
-  if (partes.length < 2 || partes[0].startsWith(":") || partes.some(p => p === ".." || p === ".")) return null;
+  if (partes.length < (/^(sites|teams|personal)$/i.test(partes[0] || "") ? 3 : 2) || partes[0].startsWith(":") || partes.some(p => p === ".." || p === ".")) return null;
   return { host: u.hostname.toLowerCase(), carpeta: "/" + partes.join("/") };
 }
 function safeDecode(t) { try { return decodeURIComponent(t); } catch (_) { return t; } }
