@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://*.sharepoint.com http://localhost:* http://127.0.0.1:*; frame-src 'self'; base-uri 'none'; form-action 'none'">
+<title>SIT · Sistema de Información Tornel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230b3b7a'/%3E%3Ctext x='16' y='22' font-size='18' font-weight='700' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body class="pagina-ver">
+<header class="banda">
+  <div class="banda-in">
+    <a class="pastilla" href="index.html" id="volver">← Tableros</a>
+    <div class="disco" aria-hidden="true">T</div>
+    <div><h1 id="titulo">SIT</h1><div class="sub" id="sub">Sistema de Información Tornel</div></div>
+    <div class="espacio"></div>
+    <span class="chip-banda" id="corte" hidden></span>
+    <span class="chip-banda" id="version" hidden></span>
+    <button class="pastilla" id="salir" hidden>Cerrar sesión</button>
+  </div>
+</header>
+<main class="ver-estado" id="estado" tabindex="-1" aria-live="polite"></main>
+<!-- El tablero embebido corre aislado: sin acceso al token ni al almacenamiento de esta página -->
+<iframe id="marco" title="Tablero" sandbox="allow-scripts" hidden></iframe>
+<script type="module" src="ver.js"></script>
+</body>
+</html>
