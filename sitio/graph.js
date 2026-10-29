@@ -50,6 +50,7 @@ export async function localizarCatalogo() {
   return u;
 }
 
+let fallosDirecto = 0;
 const ruta = rel => String(rel).split("/").filter(Boolean).map(encodeURIComponent).join("/");
 
 // Una carpeta de archivos de la organización. `leer` baja el archivo de una ruta relativa a ella.
@@ -63,9 +64,16 @@ export class FuenteGraph {
   // progreso(bytesLeidos, total) se llama mientras baja
   async leer(rel, progreso) {
     const meta = await (await api(this.item(rel))).json();
+    // El camino seguro es /content con el token. El enlace directo sólo lo acelera: si falla (CORS, red o más de 20 s sin
+    // respuesta) se baja por /content, y tras dos fallos en la sesión ya no se intenta.
     const directo = meta["@microsoft.graph.downloadUrl"];
     let r = null;
-    if (directo) { try { r = await fetch(directo); if (!r.ok) r = null; } catch (_) { r = null; } }
+    if (directo && fallosDirecto < 2) {
+      const ac = new AbortController(), reloj = setTimeout(() => ac.abort(), 20000);
+      try { r = await fetch(directo, { signal: ac.signal }); if (!r.ok) { r = null; fallosDirecto++; } }
+      catch (_) { r = null; fallosDirecto++; }
+      finally { clearTimeout(reloj); }
+    }
     if (!r) r = await api(`drives/${encodeURIComponent(this.drive)}/items/${encodeURIComponent(meta.id)}/content`);
     const total = Number(r.headers.get("Content-Length")) || meta.size || 0;
     if (!progreso || !r.body) return r.arrayBuffer();
