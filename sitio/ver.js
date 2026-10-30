@@ -6,7 +6,7 @@ import { abrirCatalogo, yo, perfil, textoError, catalogoNoDisponible, AVISO_CATA
 import { gerenciaDe, visiblesParaGerencia } from "./gerencias.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
-import { vigilar, cambio } from "./relectura.js";
+import { vigilar, cambio, refrescoMin } from "./relectura.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
@@ -53,21 +53,26 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     if (t.sha256 && await sha256(buf) !== String(t.sha256).toLowerCase()) { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
 
     mostrar(aTexto(buf));
-    // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible
+    // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible; cada `refresco_min` minutos
+    // del catálogo (o el valor por omisión). Si falla se avisa y se reintenta con espera creciente.
+    let minutos = refrescoMin(t, CONFIG.releerCadaMin);
     vigilar(async () => {
       try {
         const ahora = await fuente.metadatos(t.archivo);
-        if (!cambio(meta, ahora)) return;
-        // el catálogo se relee también: trae el sello del archivo nuevo
-        const c2 = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo)));
-        const t2 = (c2.tableros || []).find(x => x && x.id === t.id && typeof x.archivo === "string");
-        if (!t2) return;
-        const b2 = await fuente.leer(t2.archivo);
-        if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) return; // a medio sincronizar: se reintenta
-        meta = ahora;
-        mostrar(aTexto(b2));
-      } catch (_) { /* se vuelve a intentar en la siguiente revisión */ }
-    }, CONFIG.releerCadaMin);
+        if (cambio(meta, ahora)) {
+          // el catálogo se relee también: trae el sello del archivo nuevo y el refresco vigente
+          const c2 = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo)));
+          const t2 = (c2.tableros || []).find(x => x && x.id === t.id && typeof x.archivo === "string");
+          if (!t2) throw new Error("el tablero ya no está en el catálogo");
+          const b2 = await fuente.leer(t2.archivo);
+          if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) throw new Error("a medio sincronizar");
+          meta = ahora; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
+          mostrar(aTexto(b2));
+        }
+        $("aviso-relectura").hidden = true;
+        return true;
+      } catch (_) { $("aviso-relectura").hidden = false; return false; }
+    }, () => minutos);
   } catch (e) { aviso(textoError(e)); }
 })();
 

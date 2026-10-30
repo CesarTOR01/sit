@@ -1,7 +1,8 @@
 // SIT: inicia sesión con la cuenta de la organización, lee el catálogo y los tableros con los permisos de esa cuenta,
 // verifica el sha256 cuando el catálogo lo trae y los pinta. También abre una carpeta local con el mismo formato.
 // Formato visor/1:
-//   catálogo      { contrato:"visor/1", titulo, subtitulo?, generado, tableros:[{ id, titulo, grupo?, descripcion?, tipo?:"datos"|"embebido", archivo, sha256?, bytes? }] }
+//   catálogo      { contrato:"visor/1", titulo, subtitulo?, generado, tableros:[{ id, titulo, grupo?, descripcion?, tipo?:"datos"|"embebido", archivo, sha256?, bytes?, refresco_min? }] }
+//                 refresco_min: cada cuántos minutos se revisa este tablero mientras está abierto y visible (1 a 1440; por omisión CONFIG.releerCadaMin)
 //                 (en la organización se llama como CONFIG.catalogo; en una carpeta local, portal.json; `archivo` es relativo a su carpeta)
 //   tablero datos { contrato:"visor/1", id, titulo, subtitulo?, generado, fuente?, bloques:[ … ] }
 //   tablero embebido: un HTML completo sin red, que se muestra en un marco aislado (ver.html)
@@ -20,7 +21,7 @@ import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./geren
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
-import { vigilar, cambio } from "./relectura.js";
+import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
 import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
@@ -140,9 +141,9 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
     if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
     try { portal = await cargarCatalogo(fuente, archivoCatalogo); }
     catch (e) {
-      if (catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return; }
-      if (silencioso) return;
-      c.replaceChildren(errorConReintento(e.message, id)); return;
+      if (catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return false; }
+      if (silencioso) return false;
+      c.replaceChildren(errorConReintento(e.message, id)); return false;
     }
   }
   const t = visibles(portal.tableros).find(x => x.id === id);
@@ -165,27 +166,41 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
       pintarBloques(datos.bloques));
     document.title = (datos.titulo || t.titulo) + " · SIT";
     if (silencioso) window.scrollTo(0, y);
+    ultimaOk = Date.now();
+    if (vigilancia) vigilancia.marcar(); // recién leído: la siguiente revisión cuenta desde ahora
   } catch (e) {
-    if (silencioso) return;
+    if (silencioso) return false;
     c.replaceChildren(errorConReintento(e.message, id));
+    return false;
   }
   if (!silencioso) c.focus({ preventScroll: true });
+  return true;
 }
 
 // Relectura automática: del tablero de datos abierto, sólo si su archivo cambió (fecha o tamaño), sin bajarlo si no.
 // La frescura la fija la última publicación del exportador; esto sólo evita que la pestaña se quede con una copia vieja.
-let revisando = false;
+// Cada tablero puede traer su `refresco_min` en el catálogo; si no, vale CONFIG.releerCadaMin. Si la revisión falla se
+// avisa (sin tocar lo que se ve) y se reintenta con espera creciente.
+let vigilancia = null, ultimaOk = Date.now();
+const tableroAbierto = () => portal && actualId ? portal.tableros.find(x => x.id === actualId) : null;
+function avisoRelectura(mostrar) {
+  let a = document.getElementById("aviso-relectura");
+  if (!mostrar) { if (a) a.remove(); return; }
+  if (!a) { a = h("div", { class: "aviso warn", id: "aviso-relectura", role: "status" }); $("contenido").prepend(a); }
+  const d = new Date(ultimaOk), p = n => String(n).padStart(2, "0");
+  a.textContent = "No se pudo actualizar este tablero; se vuelve a intentar solo. Lo que ves se revisó por última vez a las " + p(d.getHours()) + ":" + p(d.getMinutes()) + ".";
+}
 async function revisarTablero() {
-  if (revisando || document.hidden || !portal || !actualId || !fuente || fuente.tipo !== "graph") return;
-  const t = portal.tableros.find(x => x.id === actualId);
-  if (!t || t.tipo === "embebido") return;
-  revisando = true;
+  const t = tableroAbierto();
+  if (document.hidden || !t || !fuente || fuente.tipo !== "graph" || t.tipo === "embebido") return true;
   try {
     const ahora = await fuente.metadatos(t.archivo);
-    if (cambio(t.meta, ahora) && actualId === t.id) await mostrarTablero(t.id, { silencioso: true });
-  } catch (_) { /* se vuelve a intentar en la siguiente revisión */ } finally { revisando = false; }
+    if (cambio(t.meta, ahora) && actualId === t.id && !(await mostrarTablero(t.id, { silencioso: true }))) throw new Error("no se pudo leer");
+    ultimaOk = Date.now(); avisoRelectura(false);
+    return true;
+  } catch (_) { avisoRelectura(true); return false; }
 }
-vigilar(revisarTablero, CONFIG.releerCadaMin);
+vigilancia = vigilar(revisarTablero, () => refrescoMin(tableroAbierto(), CONFIG.releerCadaMin));
 
 function portadaPortal() {
   const edad = hace(portal.generado);
