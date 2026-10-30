@@ -20,6 +20,7 @@ import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./geren
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
+import { vigilar, cambio } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
 import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
@@ -52,7 +53,7 @@ async function leerJSON(ruta, esperado) {
   let sello = "sin";
   if (esperado) {
     const real = await sha256(buf);
-    if (real !== String(esperado).toLowerCase()) throw new Error("El archivo " + ruta + " no cuadra con su sello (sha256). Puede estar a medio sincronizar: espera a que termine la sincronización y pulsa Actualizar.");
+    if (real !== String(esperado).toLowerCase()) throw new Error("El archivo " + ruta + " no cuadra con su sello (sha256). Puede estar a medio sincronizar: espera a que termine la sincronización y vuelve a intentarlo.");
     sello = "ok";
   }
   let datos;
@@ -67,6 +68,18 @@ function hace(iso) {
   const hrs = (Date.now() - t) / 36e5;
   return { horas: hrs, txt: hrs < 1 ? "hace menos de 1 h" : hrs < 48 ? "hace " + Math.round(hrs) + " h" : "hace " + Math.round(hrs / 24) + " días" };
 }
+
+// "2026-10-29T14:40:00Z" -> "29/10/2026 14:40" (hora local de quien mira), o null si no es una fecha
+function fechaHora(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = n => String(n).padStart(2, "0");
+  return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+const errorConReintento = (mensaje, id) => h("div", {},
+  h("div", { class: "aviso bad", role: "alert" }, mensaje),
+  h("p", {}, h("button", { class: "boton sec", onclick: () => mostrarTablero(id) }, "Reintentar")));
 
 const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) : "#/" + encodeURIComponent(t.id);
 
@@ -117,41 +130,62 @@ function pintarMenu() {
   grupos();
 }
 
-async function mostrarTablero(id, { releer = true } = {}) {
+// silencioso: relectura automática del tablero ya abierto; no muestra "Cargando…", no toca el menú, conserva la posición de
+// la página y, si algo falla, deja lo que ya se veía (sólo avisa si el catálogo dejó de estar disponible).
+async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   const c = $("contenido");
+  const y = window.scrollY;
   // cada apertura vuelve a leer el catálogo: mover el catálogo o cambiar permisos surte efecto en la siguiente apertura
   if (releer && fuente && fuente.tipo === "graph") {
-    c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
+    if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
     try { portal = await cargarCatalogo(fuente, archivoCatalogo); }
     catch (e) {
       if (catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return; }
-      c.replaceChildren(h("div", { class: "aviso bad", role: "alert" }, e.message)); return;
+      if (silencioso) return;
+      c.replaceChildren(errorConReintento(e.message, id)); return;
     }
   }
   const t = visibles(portal.tableros).find(x => x.id === id);
   actualId = t ? t.id : null;
-  pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false");
+  if (!silencioso || !t) { pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false"); }
   if (!t) { c.replaceChildren(portadaPortal()); return; }
   if (t.tipo === "embebido") { location.replace(hrefDe(t)); return; }
-  c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
+  if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
   try {
     const { datos, sello } = await leerJSON(t.archivo, t.sha256);
     if (actualId !== t.id) return;
-    const edad = hace(datos.generado);
+    const edad = hace(datos.generado), alas = fechaHora(datos.generado);
     c.replaceChildren(
       h("h2", { class: "titulo-tab" }, datos.titulo || t.titulo),
       datos.subtitulo ? h("p", { class: "sub-tab" }, datos.subtitulo) : null,
       h("div", { class: "fila-chips" },
-        h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Datos de " + edad.txt),
+        h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok"), title: "Hora de la última publicación de este tablero" }, alas ? "Datos al " + alas + " (" + edad.txt + ")" : "Datos de fecha desconocida"),
         h("span", { class: "chip " + (sello === "ok" ? "ok" : "warn"), title: sello === "ok" ? "El archivo cuadra con el sha256 del catálogo" : "El catálogo no trae sha256 para este archivo" }, sello === "ok" ? "Sello verificado" : "Sin sello"),
         datos.fuente ? h("span", { class: "chip" }, "Fuente: " + datos.fuente) : null),
       pintarBloques(datos.bloques));
     document.title = (datos.titulo || t.titulo) + " · SIT";
+    if (silencioso) window.scrollTo(0, y);
   } catch (e) {
-    c.replaceChildren(h("div", { class: "aviso bad", role: "alert" }, e.message));
+    if (silencioso) return;
+    c.replaceChildren(errorConReintento(e.message, id));
   }
-  c.focus({ preventScroll: true });
+  if (!silencioso) c.focus({ preventScroll: true });
 }
+
+// Relectura automática: del tablero de datos abierto, sólo si su archivo cambió (fecha o tamaño), sin bajarlo si no.
+// La frescura la fija la última publicación del exportador; esto sólo evita que la pestaña se quede con una copia vieja.
+let revisando = false;
+async function revisarTablero() {
+  if (revisando || document.hidden || !portal || !actualId || !fuente || fuente.tipo !== "graph") return;
+  const t = portal.tableros.find(x => x.id === actualId);
+  if (!t || t.tipo === "embebido") return;
+  revisando = true;
+  try {
+    const ahora = await fuente.metadatos(t.archivo);
+    if (cambio(t.meta, ahora) && actualId === t.id) await mostrarTablero(t.id, { silencioso: true });
+  } catch (_) { /* se vuelve a intentar en la siguiente revisión */ } finally { revisando = false; }
+}
+vigilar(revisarTablero, CONFIG.releerCadaMin);
 
 function portadaPortal() {
   const edad = hace(portal.generado);
@@ -209,7 +243,8 @@ async function conectar(f, archivo) {
     fuente = null; mostrarConexion({ aviso: e.message }); return;
   }
   $("conectar").hidden = true; $("marco").hidden = false;
-  $("refrescar").hidden = $("cambiar").hidden = false; actualizarOlvidar();
+  // en la organización el tablero se relee solo: el botón Actualizar sólo queda para las fuentes locales de prueba
+  $("cambiar").hidden = false; $("refrescar").hidden = f.tipo === "graph"; actualizarOlvidar();
   $("cambiar").textContent = f.tipo === "graph" ? "Cerrar sesión" : "Cambiar fuente";
   $("marca").textContent = "SIT";
   $("marca-sub").textContent = f.tipo === "graph" ? (usuario ? "Sesión de " + usuario : "Sesión iniciada") : "Fuente: " + f.nombre;

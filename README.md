@@ -22,3 +22,5 @@ El sitio no lleva la ubicación del catálogo ni lo busca por nombre. La primera
 
 Cada vez que se abre un tablero el sitio vuelve a leer el catálogo y el archivo con `cache: "no-store"`, con el token de la persona. No guarda datos en `localStorage`, `IndexedDB` ni Cache Storage: el almacenamiento local sólo tiene punteros (dominio y ruta de la carpeta, y la preferencia de tema). Si el permiso se retira o el catálogo se mueve, la siguiente apertura lo refleja y no se muestra ninguna copia.
 
+El tablero abierto se vuelve a leer solo: al volver a ver la pestaña (si pasaron más de 30 s) y, mientras está visible, cada `releerCadaMin` minutos (10 por omisión, en `config.js`). Antes de bajarlo se compara la fecha de modificación y el tamaño del archivo; si no cambiaron, no se baja. Si la relectura falla, se conserva lo que ya se veía. El sitio muestra la hora de publicación que trae el propio archivo (`generado`): la frescura de los datos la fija la última publicación del exportador, no la lectura. No hay botón Actualizar; ante un error aparece el botón Reintentar.
+

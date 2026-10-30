@@ -6,6 +6,7 @@ import { abrirCatalogo, yo, perfil, textoError, catalogoNoDisponible, AVISO_CATA
 import { gerenciaDe, visiblesParaGerencia } from "./gerencias.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
+import { vigilar, cambio } from "./relectura.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
@@ -43,6 +44,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
 
+    let meta = await fuente.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
     const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
     estado(texto, barra);
     const buf = await fuente.leer(t.archivo,
@@ -50,17 +52,34 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
       s => { texto.textContent = "Esperando respuesta del servidor… " + s + " s"; });
     if (t.sha256 && await sha256(buf) !== String(t.sha256).toLowerCase()) { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
 
-    const html = aTexto(buf);
-    // el corte y la versión se leen del texto: el marco aislado no deja leerlos desde aquí
-    const i = html.indexOf('"snapshotBD":"');
-    const corte = i >= 0 ? /^"snapshotBD":"(\d{4}-\d{2}-\d{2})"/.exec(html.slice(i, i + 40)) : null;
-    if (corte) { $("corte").textContent = "Corte " + fechaCorta(corte[1]); $("corte").hidden = false; }
-    const ver = /Versi[oó]n <b>([^<]{1,40})<\/b>/.exec(html);
-    if (ver) { $("version").textContent = ver[1]; $("version").hidden = false; }
-
-    $("estado").hidden = true;
-    const marco = $("marco");
-    marco.hidden = false;
-    marco.srcdoc = html;
+    mostrar(aTexto(buf));
+    // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible
+    vigilar(async () => {
+      try {
+        const ahora = await fuente.metadatos(t.archivo);
+        if (!cambio(meta, ahora)) return;
+        // el catálogo se relee también: trae el sello del archivo nuevo
+        const c2 = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo)));
+        const t2 = (c2.tableros || []).find(x => x && x.id === t.id && typeof x.archivo === "string");
+        if (!t2) return;
+        const b2 = await fuente.leer(t2.archivo);
+        if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) return; // a medio sincronizar: se reintenta
+        meta = ahora;
+        mostrar(aTexto(b2));
+      } catch (_) { /* se vuelve a intentar en la siguiente revisión */ }
+    }, CONFIG.releerCadaMin);
   } catch (e) { aviso(textoError(e)); }
 })();
+
+// Pone el HTML del tablero en el marco aislado y lee de su texto el corte y la versión (el marco no deja leerlos desde aquí).
+function mostrar(html) {
+  const i = html.indexOf('"snapshotBD":"');
+  const corte = i >= 0 ? /^"snapshotBD":"(\d{4}-\d{2}-\d{2})"/.exec(html.slice(i, i + 40)) : null;
+  if (corte) { $("corte").textContent = "Corte " + fechaCorta(corte[1]); $("corte").hidden = false; }
+  const ver = /Versi[oó]n <b>([^<]{1,40})<\/b>/.exec(html);
+  if (ver) { $("version").textContent = ver[1]; $("version").hidden = false; }
+  $("estado").hidden = true;
+  const marco = $("marco");
+  marco.hidden = false;
+  marco.srcdoc = html;
+}

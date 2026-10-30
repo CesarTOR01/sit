@@ -11,6 +11,7 @@ const BASE = {
   alcancesBasicos: ["openid", "profile", "offline_access", "User.Read"],
   alcanceSharePoint: "AllSites.Read",
   catalogo: "sit-catalogo.json",
+  releerCadaMin: 10, // minutos entre revisiones del tablero abierto mientras la pestaña está visible
   redirect: null, // por omisión: la carpeta de index.html, con "/" final
 };
 
