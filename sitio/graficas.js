@@ -15,6 +15,15 @@ function escala(lo, hi, n = 5) {
 
 const color = i => `var(--s${(i % 8) + 1})`;
 
+// Marca del eje Y: respeta el formato del bloque (pct sale como porcentaje; los valores chicos conservan decimales).
+const EJE_PCT = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 });
+const EJE_DEC = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
+function marcaEje(m, formato, moneda) {
+  if (formato === "pct") return EJE_PCT.format(m * 100) + "%";
+  if (!moneda && Math.abs(m) < 1e4 && !Number.isInteger(Math.round(m * 1e6) / 1e6)) return EJE_DEC.format(m);
+  return abreviado(m, moneda);
+}
+
 // Se dibuja al ancho real del contenedor (1 unidad = 1 px) para que el texto conserve su tamaño en tarjetas angostas.
 export function grafica(b, tipo) {
   const series = (b.series || []).filter(x => Array.isArray(x.valores));
@@ -59,7 +68,7 @@ function construir(b, tipo, W, x, series) {
 
   for (const m of esc.marcas) {
     svg.append(s("line", { class: m === 0 ? "cero" : "rej", x1: L, x2: W - R, y1: py(m), y2: py(m) }));
-    svg.append(s("text", { x: L - 6, y: py(m) + 4, "text-anchor": "end" }, abreviado(m, moneda)));
+    svg.append(s("text", { x: L - 6, y: py(m) + 4, "text-anchor": "end" }, marcaEje(m, b.formato, moneda)));
   }
   const cada = Math.max(1, Math.ceil(x.length / Math.max(1, Math.floor((W - L - R) / 64))));
   x.forEach((et, i) => { if (i % cada === 0) svg.append(s("text", { x: px(i), y: H - 11, "text-anchor": "middle" }, et)); });
