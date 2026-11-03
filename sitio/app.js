@@ -15,6 +15,7 @@
 //   texto  { tipo, titulo?, texto }
 // formato: moneda, moneda_abrev, entero, decimal, pct (fracción: 0.91 = 91%), dias, piezas, fecha, texto, estado (sólo en tabla).
 // estado: ok | warn | bad | na. null = “NA”: no es 0 y no entra en barras ni en cálculos.
+import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
 import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
@@ -23,7 +24,7 @@ import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, 
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -263,8 +264,26 @@ async function conectar(f, archivo) {
   $("cambiar").textContent = f.tipo === "graph" ? "Cerrar sesión" : "Cambiar fuente";
   $("marca").textContent = "SIT";
   $("marca-sub").textContent = f.tipo === "graph" ? (usuario ? "Sesión de " + usuario : "Sesión iniciada") : "Fuente: " + f.nombre;
+  $("marca-sub").title = f.tipo === "graph" ? "Carpeta de origen: " + f.host + f.carpeta : "";
   aplicarGerencia();
   await mostrarTablero(ruta(), { releer: false });
+}
+
+// Pantalla de confirmación: muestra de dónde vendrán los tableros antes de guardar la carpeta del enlace.
+function confirmarUbicacion(nueva, previa) {
+  return new Promise(ok => {
+    $("marco").hidden = true; $("conectar").hidden = false; $("refrescar").hidden = true;
+    document.body.removeAttribute("data-gerencia");
+    const fila = (titulo, u) => h("p", {}, h("strong", {}, titulo), h("br"), h("code", { class: "ubicacion" }, u.host + u.carpeta));
+    $("conectar").replaceChildren(h("div", { class: "landing" }, h("section", { class: "landing-hero" }, h("div", { class: "landing-texto" },
+      h("h1", { class: "landing-titulo" }, previa ? "Este enlace abre otra carpeta" : "Confirma la carpeta de este enlace"),
+      h("p", { class: "aviso warn" }, "SIT mostrará los tableros que haya en esa carpeta. Continúa sólo si conoces a quien te mandó el enlace."),
+      fila("Carpeta del enlace", nueva),
+      previa ? fila("Carpeta que SIT tenía guardada", previa) : null,
+      h("div", { class: "acciones" },
+        h("button", { class: "boton grande", onclick: () => ok(true) }, "Abrir esta carpeta"),
+        h("button", { class: "boton sec grande", onclick: () => ok(false) }, previa ? "Mantener la anterior" : "Cancelar"))))));
+  });
 }
 
 async function conectarSesion() {
@@ -289,8 +308,18 @@ async function conectarSesion() {
   usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento);
   // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
   const id = tomarPendiente();
-  if (id) {
-    try { await configurarDesdeEnlace(id); }
+  // un enlace que no abre la carpeta ya guardada se confirma a la vista de la persona, con el dominio y la carpeta de origen
+  let aplicar = id;
+  if (id && !mismaUbicacion(id, leerUbicacion()) && !(await confirmarUbicacion(id, leerUbicacion()))) {
+    aplicar = null;
+    if (!leerUbicacion()) {
+      mostrarConexion({ aviso: "No se abrió ninguna carpeta. Pide un enlace nuevo si lo necesitas." });
+      $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
+      return;
+    }
+  }
+  if (aplicar) {
+    try { await configurarDesdeEnlace(aplicar); }
     catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
   }
   try { fuente = await abrirCatalogo(); }

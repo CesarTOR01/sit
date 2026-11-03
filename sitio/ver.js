@@ -1,5 +1,6 @@
 // Ruta de un tablero embebido: baja su HTML con los permisos de la persona y lo muestra en un marco aislado.
 // El marco usa sandbox="allow-scripts" sin allow-same-origin: el tablero no alcanza el token ni el almacenamiento.
+import "./guardia.js";
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
 import { abrirCatalogo, yo, perfil, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";

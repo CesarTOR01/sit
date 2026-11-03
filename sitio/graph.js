@@ -39,6 +39,8 @@ const UBICACION = "sit.ubicacion", PENDIENTE = "sit.pendiente";
 export function leerUbicacion() {
   try { const u = JSON.parse(localStorage.getItem(UBICACION) || "null"); return u && u.host && u.carpeta ? u : null; } catch (_) { return null; }
 }
+// Dos ubicaciones son la misma carpeta si coinciden dominio y ruta (sin distinguir mayúsculas).
+export const mismaUbicacion = (a, b) => !!a && !!b && String(a.host).toLowerCase() === String(b.host).toLowerCase() && String(a.carpeta).toLowerCase() === String(b.carpeta).toLowerCase();
 function guardarUbicacion(u) { try { localStorage.setItem(UBICACION, JSON.stringify({ host: u.host, carpeta: u.carpeta })); } catch (_) { /* sin almacenamiento */ } }
 
 // Borra todo lo que SIT guardó en este navegador.
@@ -118,7 +120,10 @@ export class FuenteSP {
   // la API REST vive en el sitio que contiene la carpeta: /sites/<x>, /teams/<x>, /personal/<x> o la raíz
   base() { const m = /^\/(?:sites|teams|personal)\/[^/]+/i.exec(this.carpeta); return "https://" + this.host + (m ? m[0] : ""); }
   archivo(rel) {
-    const p = this.carpeta + "/" + String(rel).split("/").filter(Boolean).join("/");
+    // la ruta del catálogo se queda dentro de la carpeta: sin `..`, sin `.` y sin contrabarras
+    const partes = String(rel).split("/").filter(x => x && x !== ".");
+    if (!partes.length || partes.some(x => x === ".." || x.includes("\\"))) throw new ErrorGraph("ruta", "El catálogo trae una ruta de archivo que no es válida.");
+    const p = this.carpeta + "/" + partes.join("/");
     return this.base() + "/_api/web/GetFileByServerRelativePath(decodedurl='" + p.split("/").map(s => encodeURIComponent(s.replace(/'/g, "''"))).join("/") + "')";
   }
   pedir(url, init) { return pedir(url, "sp", "SharePoint", init); }

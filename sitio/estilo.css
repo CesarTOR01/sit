@@ -165,6 +165,7 @@ code { font-family: var(--mono); font-size: 12px; }
 
 /* inicio de sesión y página de tablero embebido */
 .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 16px; }
+.ubicacion { overflow-wrap: anywhere; }
 details.otras { border-top: 1px solid var(--linea); padding-top: 12px; }
 details.otras > summary { cursor: pointer; color: var(--accion); font-weight: 600; }
 .chip-banda { border: 1px solid rgba(255, 255, 255, .45); border-radius: 999px; padding: 3px 12px; font-size: 12px; background: rgba(255, 255, 255, .12); color: #fff; white-space: nowrap; }
