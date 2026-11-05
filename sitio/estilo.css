@@ -293,3 +293,49 @@ th { font-size: 13px; }
 [data-gerencia="control"] { --acento: var(--acc-control); }
 .g-palomita-b { fill: none; stroke: var(--tarjeta); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
 .estado-celda.na { background: var(--na-bg); color: var(--tinta2); }
+
+/* v5 · estilo tomado de las pantallas de Stitch y adaptado al Manual de Identidad.
+   Reglas del Manual de Identidad: nada de degradados, sombras, brillos, desenfoques ni animaciones; colores sólo los de la paleta y los estados de siempre. */
+.banda { border-bottom: 1px solid var(--linea); }
+.banda h1 { font-size: 17px; font-weight: 800; }
+
+/* menú lateral: grupos pequeños, íconos propios y marca clara del elemento activo */
+nav.lateral { border-right: 1px solid var(--linea); padding-right: 12px; }
+nav.lateral input { border-radius: 10px; }
+nav.lateral h2 { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 18px 8px 6px; }
+nav.lateral a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border-left: 3px solid transparent; }
+nav.lateral a:hover { background: var(--fondo); }
+nav.lateral a[aria-current="page"] { background: color-mix(in srgb, var(--acento) 12%, var(--tarjeta)); border-left-color: var(--acento); color: var(--tinta); font-weight: 700; }
+.ico { flex: none; width: 18px; height: 18px; display: inline-grid; place-items: center; color: var(--tinta2); }
+nav.lateral a[aria-current="page"] .ico { color: var(--acento); }
+.ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* tarjetas: filo superior de color (el estado, o el acento de la gerencia) en lugar del filo izquierdo */
+.tarjeta, .kpi, .total { border-radius: 12px; }
+.kpi { border-top: 3px solid var(--acento); }
+.kpi.ok { border-top-color: var(--ok); } .kpi.warn { border-top-color: var(--warn); } .kpi.bad { border-top-color: var(--bad); } .kpi.na { border-top-color: var(--na); }
+.kpi .et { font-weight: 700; }
+.kpi .val { font-size: 28px; font-weight: 800; }
+.kpi .val.chico { font-size: 18px; font-weight: 700; }
+.tarjeta h3 { font-size: 15px; font-weight: 800; }
+.titulo-tab { font-size: 24px; font-weight: 800; }
+.hero-gerencia { border-left-width: 1px; border-top: 4px solid var(--acento); }
+
+/* tablas más legibles */
+th { background: var(--fondo); font-weight: 700; color: var(--tinta2); }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--fondo) 55%, var(--tarjeta)); }
+td:first-child { font-weight: 700; }
+
+/* portada: panel enmarcado, texto a la izquierda y la marca en su propio recuadro a la derecha */
+.landing { max-width: 1120px; margin: 24px auto; padding: 40px; border: 1px solid var(--linea); border-radius: 16px; background: var(--tarjeta); min-height: 0; }
+.landing-hero { gap: 40px; }
+.landing-titulo { font-weight: 800; }
+.landing-imagen { border: 1px solid var(--linea); border-radius: 14px; padding: 28px; background: var(--fondo); }
+.landing .acciones { flex-direction: column; align-items: stretch; gap: 10px; }
+.landing .acciones .boton { width: 100%; padding: 14px 18px; border-radius: 10px; text-align: left; }
+.landing details.otras { margin-top: 24px; max-width: none; border: 1px solid var(--linea); border-radius: 10px; padding: 12px 14px; }
+@media (max-width: 860px) { .landing { margin: 12px; padding: 20px; } .landing-imagen { padding: 16px; } nav.lateral { border-right: 0; padding-right: 0; } }
+
+
+/* en teléfono el encabezado de la gerencia va en una sola columna (una regla anterior lo dejaba en dos y el texto se encimaba con el emblema) */
+@media (max-width: 860px) { .hero-gerencia { grid-template-columns: minmax(0, 1fr); } }

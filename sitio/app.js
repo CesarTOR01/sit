@@ -20,6 +20,7 @@ import { h } from "./comun.js";
 import { landing } from "./landing.js";
 import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
+import { icono } from "./iconos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -129,7 +130,7 @@ function pintarMenu() {
       if (f && !(t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f)) continue;
       const g = t.grupo || "Tableros"; if (!por.has(g)) por.set(g, []); por.get(g).push(t);
     }
-    lista.replaceChildren(...[...por].flatMap(([g, ts]) => [h("h2", {}, g), ...ts.map(t => h("a", { href: hrefDe(t), "aria-current": t.id === actualId ? "page" : null, title: t.descripcion || null }, t.titulo))]));
+    lista.replaceChildren(...[...por].flatMap(([g, ts]) => [h("h2", {}, g), ...ts.map(t => h("a", { href: hrefDe(t), "aria-current": t.id === actualId ? "page" : null, title: t.descripcion || null }, icono(t), h("span", {}, t.titulo)))]));
     if (!por.size) lista.replaceChildren(h("p", { class: "sub-tab relleno" }, "Sin coincidencias."));
   };
   q.addEventListener("input", grupos);
