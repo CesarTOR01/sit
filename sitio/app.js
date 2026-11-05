@@ -1,7 +1,7 @@
 // SIT: inicia sesión con la cuenta de la organización, lee el catálogo y los tableros con los permisos de esa cuenta,
 // verifica el sha256 cuando el catálogo lo trae y los pinta. También abre una carpeta local con el mismo formato.
 // Formato visor/1:
-//   catálogo      { contrato:"visor/1", titulo, subtitulo?, generado, tableros:[{ id, titulo, grupo?, descripcion?, tipo?:"datos"|"embebido", archivo, sha256?, bytes?, refresco_min? }] }
+//   catálogo      { contrato:"visor/1", titulo, subtitulo?, generado, tableros:[{ id, titulo, grupo?, audiencias?:[etiqueta], descripcion?, tipo?:"datos"|"embebido", archivo, sha256?, bytes?, refresco_min? }] }
 //                 refresco_min: cada cuántos minutos se revisa este tablero mientras está abierto y visible (1 a 1440; por omisión CONFIG.releerCadaMin)
 //                 (en la organización se llama como CONFIG.catalogo; en una carpeta local, portal.json; `archivo` es relativo a su carpeta)
 //   tablero datos { contrato:"visor/1", id, titulo, subtitulo?, generado, fuente?, bloques:[ … ] }
@@ -18,13 +18,13 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
+import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, perfil, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, perfil, leerAcceso, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -34,6 +34,9 @@ let enlaceInvalido = false;
 const $ = id => document.getElementById(id);
 const VIGENCIA_H = 36;
 let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "", gerencia = GENERAL;
+// etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
+// accesoRoto: el catálogo de acceso existe pero no se pudo usar y se muestra sólo lo general
+let etiquetas = null, accesoRoto = false;
 
 /* ---------- tema ---------- */
 function tema(t) {
@@ -113,7 +116,7 @@ function aplicarGerencia() {
   if (fuente && fuente.tipo === "graph") document.body.setAttribute("data-gerencia", gerencia.id); else document.body.removeAttribute("data-gerencia");
 }
 // Los tableros del grupo de su gerencia van primero.
-const visibles = ts => fuente && fuente.tipo === "graph" ? visiblesParaGerencia(ts, gerencia) : ts;
+const visibles = ts => fuente && fuente.tipo === "graph" ? visiblesParaGerencia(ts, gerencia, etiquetas) : ts;
 
 function pintarMenu() {
   const q = h("input", { type: "search", placeholder: "Buscar tablero…", "aria-label": "Buscar tablero" });
@@ -209,6 +212,7 @@ function portadaPortal() {
   return h("div", {},
     graph ? heroGerencia(gerencia, usuario) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
     !graph && portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
+    graph && accesoRoto ? h("div", { class: "aviso warn", role: "status" }, "No se pudo leer tu acceso; por ahora sólo se muestran los tableros generales.") : null,
     graph ? h("h3", { class: "tus-tableros" }, "Tus tableros") : null,
     h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, visibles(portal.tableros).length + (visibles(portal.tableros).length === 1 ? " tablero" : " tableros"))),
     visibles(portal.tableros).length ? h("div", { class: "kpis" }, visibles(portal.tableros).map(t => {
@@ -305,7 +309,7 @@ async function conectarSesion() {
     return;
   }
   const p = await perfil().catch(() => ({}));
-  usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento);
+  usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento); etiquetas = null; accesoRoto = false;
   // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
   const id = tomarPendiente();
   // un enlace que no abre la carpeta ya guardada se confirma a la vista de la persona, con el dominio y la carpeta de origen
@@ -324,19 +328,23 @@ async function conectarSesion() {
   }
   try { fuente = await abrirCatalogo(); }
   catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
+  // el catálogo de acceso reemplaza al departamento; si existe y no se puede usar, sólo se muestra lo general
+  const acceso = await leerAcceso(fuente, p.llave);
+  if (acceso.estado === "entrada") { etiquetas = acceso.etiquetas; gerencia = gerenciaDeEtiquetas(etiquetas); }
+  else if (acceso.estado === "roto") { etiquetas = ["General"]; gerencia = GENERAL; accesoRoto = true; }
   await conectar(fuente, CONFIG.catalogo);
 }
 
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false;
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false;
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });

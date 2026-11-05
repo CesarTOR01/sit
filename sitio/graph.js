@@ -2,6 +2,7 @@
 // El perfil sale de Microsoft Graph; los archivos, de la API REST de SharePoint de la organización.
 import { CONFIG } from "./config.js";
 import { token, ErrorAuth } from "./auth.js";
+import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "./acceso.js";
 
 export class ErrorGraph extends Error {
   constructor(codigo, mensaje, estado) { super(mensaje); this.codigo = codigo; this.estado = estado || null; }
@@ -25,9 +26,10 @@ async function pedir(url, tipo, nombre, init = {}, intento = 0, renovado = false
 }
 const api = (ruta, init) => pedir(CONFIG.graph + ruta, "graph", "Graph", init);
 
+// `llave` es el hash del correo de la cuenta (para buscarla en el catálogo de acceso): el correo se usa aquí y no sale de esta función.
 export async function perfil() {
-  const j = await (await api("me?$select=displayName,department")).json();
-  return { nombre: j.displayName || "", departamento: j.department || "" };
+  const j = await (await api("me?$select=displayName,department,userPrincipalName")).json();
+  return { nombre: j.displayName || "", departamento: j.department || "", llave: await hashCorreo(j.userPrincipalName) };
 }
 export async function yo() { return (await perfil()).nombre; }
 
@@ -152,6 +154,25 @@ export async function abrirCatalogo() {
   const u = leerUbicacion();
   if (!u) throw new ErrorGraph("sin-ubicacion", "No hay un catálogo configurado en este equipo.");
   return new FuenteSP(u.host, u.carpeta);
+}
+
+// El acceso de la persona, leído en línea con su propia cuenta (nunca de una copia). No lanza error nunca:
+//   "entrada" + etiquetas   la persona está en el catálogo de acceso
+//   "sin-entrada"           el catálogo es válido y no la trae
+//   "sin-catalogo"          no hay catálogo de acceso para esta carpeta (no existe, o la carpeta del enlace no tiene padre)
+//   "roto"                  existe pero no se puede leer o no sirve: se trata como la vista general
+// La ruta sale de la carpeta del enlace (su carpeta hermana), no de ningún archivo ni del sitio.
+export async function leerAcceso(f, llave) {
+  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, CONFIG.carpetaAcceso) : null;
+  if (!r || r.host !== f.host) return { estado: "sin-catalogo" };
+  const a = new FuenteSP(r.host, r.carpeta);
+  try {
+    const meta = await a.metadatos(CONFIG.acceso);
+    if (meta.bytes > MAX_BYTES) return { estado: "roto" };
+    return interpretarAcceso(new TextDecoder("utf-8").decode(await a.leer(CONFIG.acceso)), llave);
+  } catch (e) {
+    return e instanceof ErrorGraph && e.codigo === "no-existe" ? { estado: "sin-catalogo" } : { estado: "roto" };
+  }
 }
 
 // El catálogo ya no está donde se guardó (movido, borrado o sin permiso): se avisa sin detalles y no se busca en otro lugar.

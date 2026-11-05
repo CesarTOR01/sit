@@ -11,6 +11,9 @@ const BASE = {
   alcancesBasicos: ["openid", "profile", "offline_access", "User.Read"],
   alcanceSharePoint: "AllSites.Read",
   catalogo: "sit-catalogo.json",
+  // el catálogo de acceso es el archivo `acceso` de la carpeta hermana `carpetaAcceso` de la carpeta del enlace (sin ruta fija)
+  acceso: "sit-acceso.json",
+  carpetaAcceso: "acceso",
   releerCadaMin: 10, // minutos entre revisiones del tablero abierto mientras la pestaña está visible
   redirect: null, // por omisión: la carpeta de index.html, con "/" final
 };

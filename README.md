@@ -10,6 +10,8 @@ cada archivo cuando el catálogo lo trae.
   - `auth.js`, `graph.js`, `config.js`: inicio de sesión con PKCE; el perfil se lee con Microsoft Graph y los archivos con la API REST de SharePoint.
 - `herramientas/sellar_portal.py`: pone el sha256 y el tamaño de cada tablero en el catálogo.
 - `herramientas/crear_marcador.py`: arma la dirección de SIT con la dirección de la carpeta del catálogo en el fragmento (`#c=...`).
+- `herramientas/crear_acceso.py`: arma `sit-acceso.json` (catálogo de acceso) a partir de una hoja local de correo y etiquetas; el archivo lleva el hash del correo, no el correo.
+- `pruebas/acceso.prueba.js`: pruebas del catálogo de acceso con datos ficticios (`node pruebas/acceso.prueba.js`).
 - `.github/workflows/pages.yml`: publica `sitio/` en Pages al subir a `main`.
 
 No lleva secretos: el inicio de sesión usa el flujo de código con PKCE de una aplicación de página única.
@@ -24,3 +26,12 @@ Cada vez que se abre un tablero el sitio vuelve a leer el catálogo y el archivo
 
 El tablero abierto se vuelve a leer solo: al volver a ver la pestaña (si pasaron más de 30 s) y, mientras está visible, con la tasa de refresco del propio tablero: el campo `refresco_min` de su renglón en el catálogo (de 1 a 1440 minutos) o, si no lo trae, `releerCadaMin` de `config.js` (10 minutos). Así la tasa se sube o se baja por tablero sin tocar el código. Antes de bajarlo se compara la fecha de modificación y el tamaño del archivo; si no cambiaron, no se baja. Si la relectura falla, se conserva lo que ya se veía, se muestra un aviso y se reintenta con espera creciente (30 s, 60 s, 120 s… sin pasar de la tasa normal). El sitio muestra la hora de publicación que trae el propio archivo (`generado`): la frescura de los datos la fija la última publicación del exportador, no la lectura. No hay botón Actualizar; ante un error aparece el botón Reintentar.
 
+
+## Quién ve qué
+
+El filtro por gerencia sólo decide qué tableros se muestran; la barrera real son los permisos de cada carpeta de SharePoint. Por omisión la gerencia sale del campo Departamento del perfil. Si junto a la carpeta del enlace hay una carpeta hermana `acceso` con `sit-acceso.json` (contrato `acceso/1`), la entrada de la persona en ese archivo reemplaza al Departamento:
+
+- La llave es el SHA-256 del correo en minúsculas, calculado en el navegador con el perfil de quien entra; el valor es una lista de etiquetas (una gerencia, "Dirección", "General" o una audiencia).
+- Un tablero se muestra si su `grupo` es de alguna gerencia de las etiquetas, si su `grupo` es exactamente una etiqueta o si alguna de sus `audiencias` (campo opcional del catálogo) lo es. "Dirección" ve todo lo que su cuenta puede leer, y sólo vale como etiqueta: ningún tablero la otorga.
+- Sin entrada, o si no existe el catálogo de acceso, se usa el Departamento. Si el archivo existe y no se puede leer o está mal formado, se muestran sólo los tableros generales y un aviso.
+- La ruta del catálogo de acceso no sale de ningún archivo: es la carpeta hermana de la del enlace. El correo y su hash no se guardan, no se imprimen y no van en ningún aviso.

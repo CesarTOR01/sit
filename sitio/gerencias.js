@@ -33,13 +33,37 @@ export const esGrupoDe = (grupo, g) => {
   return g !== GENERAL && (de === g.id || (de === "operaciones" && (g.id === "compras" || g.id === "planeacion")));
 };
 
+// Una etiqueta del catálogo de acceso es el nombre exacto de una gerencia (o su id) o "General"; otra cosa no es una gerencia.
+const gerenciaDeEtiqueta = e => {
+  const k = sinAcentos(e);
+  return k === "general" ? GENERAL : GERENCIAS.find(g => k === sinAcentos(g.nombre) || k === g.id) || null;
+};
+const esGeneral = t => !t.grupo || sinAcentos(t.grupo) === "general";
+
+// La identidad de quien está en el catálogo de acceso: Dirección si la trae; si no, la primera gerencia que reconoce; si no, general.
+export function gerenciaDeEtiquetas(etiquetas) {
+  const gs = (etiquetas || []).map(gerenciaDeEtiqueta).filter(Boolean);
+  return gs.find(g => g.id === "direccion") || gs.find(g => g !== GENERAL) || GENERAL;
+}
+
 // Lo que la persona ve: sólo los tableros de su gerencia. Dirección ve todos los que su cuenta puede leer; sin gerencia
 // reconocida sólo se ven los tableros sin grupo o del grupo "General". Es la presentación: el acceso real a cada archivo
 // lo decide SharePoint con los permisos de la cuenta.
-export function visiblesParaGerencia(tableros, g) {
-  if (g.id === "direccion") return [...tableros];
-  if (g === GENERAL) return tableros.filter(t => !t.grupo || sinAcentos(t.grupo) === "general");
-  return tableros.filter(t => esGrupoDe(t.grupo, g));
+// Con `etiquetas` (la entrada de la persona en el catálogo de acceso) se usan ellas en lugar del departamento: un tablero se ve si
+// su grupo es de alguna gerencia de las etiquetas, si su grupo es exactamente una etiqueta o si alguna de sus `audiencias` lo es.
+// "Dirección" sólo vale como etiqueta; un tablero no se la puede dar a nadie.
+export function visiblesParaGerencia(tableros, g, etiquetas = null) {
+  if (!etiquetas) {
+    if (g.id === "direccion") return [...tableros];
+    if (g === GENERAL) return tableros.filter(esGeneral);
+    return tableros.filter(t => esGrupoDe(t.grupo, g));
+  }
+  const gs = etiquetas.map(gerenciaDeEtiqueta).filter(Boolean);
+  if (gs.some(x => x.id === "direccion")) return [...tableros];
+  return tableros.filter(t =>
+    (typeof t.grupo === "string" && etiquetas.includes(t.grupo)) ||
+    (Array.isArray(t.audiencias) && t.audiencias.some(a => typeof a === "string" && etiquetas.includes(a))) ||
+    gs.some(x => x === GENERAL ? esGeneral(t) : esGrupoDe(t.grupo, x)));
 }
 export const todasLasGerencias = () => [...GERENCIAS, GENERAL];
 
