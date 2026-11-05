@@ -139,7 +139,7 @@ code { font-family: var(--mono); font-size: 12px; }
   .banda-in > div:not(.disco):not(.espacio) { flex: 1 1 140px; min-width: 0; }
   .banda h1, .banda .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .banda .espacio { display: none; }
-  .rejilla { grid-template-columns: 1fr; }
+  .rejilla { grid-template-columns: minmax(0, 1fr); }
   .kpi .val { font-size: 24px; }
 }
 @media print { .banda, nav.lateral, .pie-pagina { display: none; } .marco { display: block; } body { background: #fff; } }
@@ -268,6 +268,7 @@ th { font-size: 13px; }
 .kpi .pie { margin-top: auto; padding-top: 4px; }
 @media (max-width: 860px) { .marco { padding: 16px; } .landing { padding-left: 16px; padding-right: 16px; } }
 .kpi:has(.detalle) { grid-column: span 2; }
+@media (max-width: 440px) { .kpi:has(.detalle) { grid-column: 1 / -1; } }
 .kpi:has(.detalle) .detalle { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 2px 20px; }
 .kpi:has(.detalle) .detalle li { gap: 10px; }
 .kpi .pie { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
