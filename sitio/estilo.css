@@ -1,7 +1,11 @@
-/* SIT · rampa slate, azul marino y teal; series con la paleta validada. */
+/* SIT · colores del Manual de Identidad Gráfica: Pantone 2955C, 301C y 299C y Cyan; las series de datos y los estados conservan su paleta validada. */
 :root {
-  --fondo: #f2f6fa; --tarjeta: #ffffff; --tinta: #0d2b45; --tinta2: #4a5a63; --linea: #dde6ee;
-  --accion: #005499; --marca: #30a8d8; --sombra: 0 1px 3px rgba(15, 23, 42, .08);
+  --b-2955: #003764; --b-301: #004a88; --b-299: #00a1e0; --b-cian: #00aeef;
+  --fondo: #f2f6fa; --tarjeta: #ffffff; --tinta: var(--b-2955); --tinta2: #58595b; --linea: #dde6ee;
+  --accion: var(--b-301); --sobre-accion: #ffffff; --marca: var(--b-299); --sombra: 0 1px 3px rgba(15, 23, 42, .08);
+  /* acento de cada gerencia: colores ampliados del manual (185C, 021C, 211C, Violet C, 285C, 3275C, 355C) y de las submarcas */
+  --acc-comercial: #0071ce; --acc-operaciones: #ff5200; --acc-regulatorios: #410099; --acc-control: var(--b-301); --acc-calidad: #00b09b; --acc-finanzas: #00af42;
+  --acc-compras: #febd29; --acc-planeacion: #f37e7a; --acc-rrhh: #fa7fb6; --acc-sistemas: var(--b-cian); --acc-direccion: var(--b-2955);
   --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fee2e2;
   --na: #64748b; --na-bg: #e2e8f0;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
@@ -9,7 +13,8 @@
 }
 :root[data-theme="dark"] {
   --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
-  --accion: #5ab0ee; --marca: #48c0f0; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+  --accion: var(--b-cian); --sobre-accion: #00203a; --marca: var(--b-cian); --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+  --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian);
   --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
   --na: #94a3b8; --na-bg: #1e293b;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
@@ -17,7 +22,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
-    --accion: #5ab0ee; --marca: #48c0f0; --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+    --accion: var(--b-cian); --sobre-accion: #00203a; --marca: var(--b-cian); --sombra: 0 1px 3px rgba(0, 0, 0, .5);
+    --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian);
     --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
     --na: #94a3b8; --na-bg: #1e293b;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
@@ -26,7 +32,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--fondo); color: var(--tinta); font: 14px/1.45 Lato, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+/* tipografía del manual: secundaria (Avenir, Futura) y de apoyo (Century Gothic, Helvetica Neue); sólo se usan las instaladas en el equipo */
+body { background: var(--fondo); color: var(--tinta); font: 14px/1.45 "Avenir Next", Avenir, Futura, "Century Gothic", "Helvetica Neue", Helvetica, Arial, sans-serif; }
 button, input, select { font: inherit; color: inherit; }
 a { color: var(--accion); }
 [hidden] { display: none !important; }
@@ -34,7 +41,15 @@ a { color: var(--accion); }
 /* encabezado */
 .banda { background: var(--tarjeta); color: var(--tinta); border-bottom: 1px solid var(--linea); padding: 0 16px; }
 .banda-in { max-width: 1400px; margin: 0 auto; height: 56px; display: flex; align-items: center; gap: 12px; }
-.disco { width: 32px; height: 32px; border-radius: 50%; background: var(--accion); color: var(--tarjeta); display: grid; place-items: center; font-weight: 800; flex: none; }
+/* logo del manual: se muestra la variante clara u oscura según el tema; nunca se deforma (sólo se fija el alto) ni lleva efectos */
+.marca-iso { display: block; height: 42px; width: auto; flex: none; }
+.marca-oscuro { display: none; }
+:root[data-theme="dark"] .marca-claro { display: none; }
+:root[data-theme="dark"] .marca-oscuro { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .marca-claro { display: none; }
+  :root:not([data-theme="light"]) .marca-oscuro { display: block; }
+}
 .banda h1 { font-size: 16px; margin: 0; font-weight: 700; }
 .banda .sub { font-size: 12px; opacity: .85; }
 .banda .espacio { flex: 1; }
@@ -99,7 +114,7 @@ td.num, th.num { text-align: right; }
 .conectar { width: 100%; }
 .conectar .opcion { border: 1px solid var(--linea); border-radius: 14px; padding: 14px; margin-top: 12px; }
 .conectar .opcion h4 { margin: 0 0 4px; }
-.boton { background: var(--accion); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+.boton { background: var(--accion); color: var(--sobre-accion); border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
 .boton.sec { background: transparent; color: var(--accion); border: 1px solid var(--accion); }
 .conectar input[type="text"], .conectar input[type="url"] { width: 100%; padding: 8px 12px; border: 1px solid var(--linea); border-radius: 10px; background: var(--fondo); margin: 6px 0; }
 .aviso { border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
@@ -194,15 +209,15 @@ nav.lateral:empty { display: none; }
 
 /* identidad por gerencia: acento, encabezado e ilustración */
 body { --acento: var(--accion); }
-[data-gerencia="comercial"] { --acento: var(--s1); }
-[data-gerencia="operaciones"] { --acento: var(--s2); }
-[data-gerencia="calidad"] { --acento: var(--s3); }
-[data-gerencia="finanzas"] { --acento: var(--s6); }
-[data-gerencia="compras"] { --acento: var(--s4); }
-[data-gerencia="planeacion"] { --acento: var(--s7); }
-[data-gerencia="rrhh"] { --acento: var(--s5); }
-[data-gerencia="sistemas"] { --acento: var(--marca); }
-[data-gerencia="direccion"] { --acento: var(--accion); }
+[data-gerencia="comercial"] { --acento: var(--acc-comercial); }
+[data-gerencia="operaciones"] { --acento: var(--acc-operaciones); }
+[data-gerencia="calidad"] { --acento: var(--acc-calidad); }
+[data-gerencia="finanzas"] { --acento: var(--acc-finanzas); }
+[data-gerencia="compras"] { --acento: var(--acc-compras); }
+[data-gerencia="planeacion"] { --acento: var(--acc-planeacion); }
+[data-gerencia="rrhh"] { --acento: var(--acc-rrhh); }
+[data-gerencia="sistemas"] { --acento: var(--acc-sistemas); }
+[data-gerencia="direccion"] { --acento: var(--acc-direccion); }
 .hero-gerencia { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: center; margin-bottom: 20px; padding: 20px 24px; border-radius: 14px; border: 1px solid var(--linea); border-left: 6px solid var(--acento); background: color-mix(in srgb, var(--acento) 9%, var(--tarjeta)); }
 .hero-nombre { margin: 0 0 4px; font-size: clamp(26px, 3.4vw, 34px); line-height: 1.1; font-weight: 700; }
 .hero-lema { margin: 0 0 10px; font-size: 17px; color: var(--tinta2); }
@@ -229,14 +244,11 @@ nav.lateral a[aria-current="page"] { background: var(--acento); }
 @media (max-width: 860px) { .hero-gerencia { grid-template-columns: 1fr; } .g-arte { max-height: 150px; } }
 
 .landing-imagen { display: grid; place-items: center; }
-.landing-arte { width: 100%; max-width: 380px; height: auto; }
-.g-halo { fill: var(--accion); fill-opacity: .08; }
-.g-liquido { fill: var(--accion); fill-opacity: .16; }
+.landing-arte { width: 100%; max-width: 340px; height: auto; }
 
 /* encabezado plano y minimalista */
 .banda { background: var(--tarjeta); color: var(--tinta); border-bottom: 1px solid var(--linea); }
 .banda .sub { opacity: 1; color: var(--tinta2); }
-.banda .disco { background: var(--accion); color: var(--tarjeta); }
 .banda .pastilla { border: 1px solid var(--linea); background: transparent; color: var(--tinta); }
 .banda .pastilla:hover { background: var(--fondo); }
 .chip-banda { border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta2); }
@@ -273,7 +285,7 @@ th { font-size: 13px; }
 .kpi:has(.detalle) .detalle li { gap: 10px; }
 .kpi .pie { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
 .pie-l { display: flex; flex-wrap: wrap; gap: 0 8px; }
-[data-gerencia="regulatorios"] { --acento: color-mix(in srgb, var(--s1) 55%, var(--s7)); }
-[data-gerencia="control"] { --acento: var(--tinta2); }
+[data-gerencia="regulatorios"] { --acento: var(--acc-regulatorios); }
+[data-gerencia="control"] { --acento: var(--acc-control); }
 .g-palomita-b { fill: none; stroke: var(--tarjeta); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
 .estado-celda.na { background: var(--na-bg); color: var(--tinta2); }
