@@ -3,7 +3,8 @@ crear_acceso.py — arma sit-acceso.json (catálogo de acceso de SIT) a partir d
 
     python crear_acceso.py --hoja <hoja.csv|hoja.xlsx> --salida <carpeta\\sit-acceso.json>
 
-La hoja tiene una columna "correo" y una columna "etiquetas" (varias, separadas por punto y coma). Una etiqueta es el nombre de
+La hoja tiene una columna "correo" (el correo con el que la persona inicia sesión, su nombre de usuario; si no coincide, la
+persona cae al Departamento) y una columna "etiquetas" (varias, separadas por punto y coma). Una etiqueta es el nombre de
 una gerencia, "Dirección", "General" o una audiencia declarada en los catálogos de tableros. Primer renglón: encabezados.
 
 El archivo que se escribe no lleva correos: la llave de cada persona es el SHA-256 del correo en minúsculas, el mismo que SIT calcula
