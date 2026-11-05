@@ -3,6 +3,7 @@
 import { CONFIG } from "./config.js";
 import { token, ErrorAuth } from "./auth.js";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "./acceso.js";
+import { nombreEmblema, aImagen, MAX_SVG } from "./emblemas.js";
 
 export class ErrorGraph extends Error {
   constructor(codigo, mensaje, estado) { super(mensaje); this.codigo = codigo; this.estado = estado || null; }
@@ -173,6 +174,24 @@ export async function leerAcceso(f, llave) {
   } catch (e) {
     return e instanceof ErrorGraph && e.codigo === "no-existe" ? { estado: "sin-catalogo" } : { estado: "roto" };
   }
+}
+
+// Los emblemas de la gerencia (positivo y, si existe, negativo), leídos con la cuenta de la persona desde la carpeta hermana `marca`.
+// Devuelve { claro, oscuro } con direcciones data: (oscuro puede ser null: se usa el positivo en un recuadro claro) o null si no hay emblema
+// o la persona no tiene permiso: nunca lanza error y no guarda nada en el navegador.
+export async function leerEmblemas(f, id) {
+  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, CONFIG.carpetaMarca) : null;
+  const pos = nombreEmblema(id, false);
+  if (!r || r.host !== f.host || !pos) return null;
+  const a = new FuenteSP(r.host, r.carpeta);
+  const uno = async nombre => {
+    try {
+      const meta = await a.metadatos(nombre);
+      return meta.bytes > MAX_SVG ? null : aImagen(await a.leer(nombre));
+    } catch (_) { return null; }
+  };
+  const [claro, oscuro] = await Promise.all([uno(pos), uno(nombreEmblema(id, true))]);
+  return claro ? { claro, oscuro } : null;
 }
 
 // El catálogo ya no está donde se guardó (movido, borrado o sin permiso): se avisa sin detalles y no se busca en otro lugar.

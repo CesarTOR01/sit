@@ -24,7 +24,7 @@ import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, 
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, perfil, leerAcceso, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, perfil, leerAcceso, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -37,6 +37,8 @@ let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.jso
 // etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
 // accesoRoto: el catálogo de acceso existe pero no se pudo usar y se muestra sólo lo general
 let etiquetas = null, accesoRoto = false;
+// emblema oficial de su gerencia, leído de la carpeta `marca` con su cuenta (null = se muestra la ilustración de respaldo)
+let emblema = null;
 
 /* ---------- tema ---------- */
 function tema(t) {
@@ -210,7 +212,7 @@ function portadaPortal() {
   const edad = hace(portal.generado);
   const graph = fuente && fuente.tipo === "graph";
   return h("div", {},
-    graph ? heroGerencia(gerencia, usuario) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
+    graph ? heroGerencia(gerencia, usuario, emblema) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
     !graph && portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
     graph && accesoRoto ? h("div", { class: "aviso warn", role: "status" }, "No se pudo leer tu acceso; por ahora sólo se muestran los tableros generales.") : null,
     graph ? h("h3", { class: "tus-tableros" }, "Tus tableros") : null,
@@ -332,19 +334,20 @@ async function conectarSesion() {
   const acceso = await leerAcceso(fuente, p.llave);
   if (acceso.estado === "entrada") { etiquetas = acceso.etiquetas; gerencia = gerenciaDeEtiquetas(etiquetas); }
   else if (acceso.estado === "roto") { etiquetas = ["General"]; gerencia = GENERAL; accesoRoto = true; }
+  emblema = gerencia === GENERAL ? null : await leerEmblemas(fuente, gerencia.id);
   await conectar(fuente, CONFIG.catalogo);
 }
 
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null;
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null;
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });

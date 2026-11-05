@@ -245,6 +245,10 @@ nav.lateral a[aria-current="page"] { background: var(--acento); }
 
 .landing-imagen { display: grid; place-items: center; }
 .landing-arte { width: 100%; max-width: 340px; height: auto; }
+/* emblema oficial de la gerencia: sin estirar ni efectos; sin versión negativa, el positivo va sobre un recuadro claro */
+.hero-emblema { display: grid; place-items: center; }
+.emblema { width: auto; height: auto; max-width: 100%; max-height: 120px; }
+.emblema.en-chip { background: #fff; padding: 10px 14px; border-radius: 10px; }
 
 /* encabezado plano y minimalista */
 .banda { background: var(--tarjeta); color: var(--tinta); border-bottom: 1px solid var(--linea); }

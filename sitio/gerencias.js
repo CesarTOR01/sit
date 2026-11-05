@@ -125,13 +125,19 @@ export function ilustracion(id) {
   return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (id || "SIT") }, c(160, 90, 100, "g-anillo"), c(176, 82, 86, "g-anillo"), ...(ARTE[id] || ARTE.general)());
 }
 
-// El encabezado del frente de la persona: su gerencia, su lema y la ilustración.
-export function heroGerencia(g, nombre) {
+// El emblema oficial de la gerencia ({claro, oscuro} como direcciones data:, ver emblemas.js): positivo en tema claro y negativo en oscuro;
+// sin negativo, el positivo va en un recuadro claro. Sólo se fija el ancho máximo; nunca se estira.
+const emblemaImg = (e, g) => h("div", { class: "hero-emblema" },
+  h("img", { class: "emblema marca-claro", src: e.claro, alt: "Emblema de " + g.nombre }),
+  h("img", { class: "emblema marca-oscuro" + (e.oscuro ? "" : " en-chip"), src: e.oscuro || e.claro, alt: "" }));
+
+// El encabezado del frente de la persona: su gerencia, su lema y el emblema (o, sin él, la ilustración).
+export function heroGerencia(g, nombre, emblema = null) {
   const primer = String(nombre || "").trim().split(/\s+/)[0];
   return h("section", { class: "hero-gerencia", "data-gerencia": g.id },
     h("div", { class: "hero-texto" },
       h("h2", { class: "hero-nombre" }, g.nombre),
       h("p", { class: "hero-lema" }, g.lema),
       primer ? h("p", { class: "hero-sesion" }, "Sesión de " + nombre) : null),
-    ilustracion(g.id));
+    emblema ? emblemaImg(emblema, g) : ilustracion(g.id));
 }

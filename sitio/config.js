@@ -14,6 +14,8 @@ const BASE = {
   // el catálogo de acceso es el archivo `acceso` de la carpeta hermana `carpetaAcceso` de la carpeta del enlace (sin ruta fija)
   acceso: "sit-acceso.json",
   carpetaAcceso: "acceso",
+  // los emblemas de las gerencias (uso interno) están en la carpeta hermana `carpetaMarca` de la carpeta del enlace, no en este repositorio
+  carpetaMarca: "marca",
   releerCadaMin: 10, // minutos entre revisiones del tablero abierto mientras la pestaña está visible
   redirect: null, // por omisión: la carpeta de index.html, con "/" final
 };
