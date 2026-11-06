@@ -24,8 +24,10 @@ igual(reglas.filter(r => /background:\s*#fff/.test(r)).every(r => /iframe#marco/
 const app = leer("../sitio/app.js");
 igual(/id="inicio"/.test(index), false, "index.html: el encabezado ya no trae el botón Inicio");
 igual(/<a[^>]*href="index\.html"[^>]*id="volver"[^>]*>← Inicio<\/a>/.test(ver), true, "ver.html: el botón ← Inicio vuelve a index.html");
-igual(/h\("a", \{ href: "#\/", class: "inicio", "aria-current": actualId \? null : "page" \}, iconoClave\("casa"\)/.test(app), true, "app.js: Inicio apunta a #/ y es activo sólo sin tablero abierto");
-igual(/replaceChildren\(inicio, q, lista\)/.test(app), true, "app.js: Inicio va primero en el menú, antes de la búsqueda y de los grupos");
+const vistas = leer("../sitio/vistas.js");
+igual(/h\("a", \{ href: hrefInicio, class: "inicio", "aria-current": actualId \? null : "page" \}, iconoClave\("casa"\)/.test(vistas), true, "vistas.js: Inicio es activo sólo sin tablero abierto");
+igual(/return \[inicio, q, lista\]/.test(vistas), true, "vistas.js: Inicio va primero en el menú, antes de la búsqueda y de los grupos");
+igual(/hrefInicio: "#\/"/.test(app), true, "app.js: Inicio apunta a la portada (#/)");
 igual(/marcarInicio/.test(app), false, "app.js: ya no queda la lógica del botón del encabezado");
 igual(/a\.pastilla \{[^}]*text-decoration: none/.test(css), true, "estilo.css: el enlace de regreso de ver.html se ve como botón");
 igual(/nav\.lateral a\.inicio \{/.test(css), true, "estilo.css: Inicio se separa de los grupos");

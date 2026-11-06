@@ -18,9 +18,8 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
-import { pintarBloques } from "./bloques.js";
-import { icono, iconoClave } from "./iconos.js";
+import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, GENERAL } from "./gerencias.js";
+import { menuLateral, portadaView, tableroView } from "./vistas.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -33,7 +32,6 @@ let enlaceInvalido = false;
 { const id = tomarEnlaceDelFragmento(); if (id) dejarPendiente(id); else if (id === null) enlaceInvalido = true; }
 
 const $ = id => document.getElementById(id);
-const VIGENCIA_H = 36;
 const TITULO_PORTADA = document.title;
 let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "", gerencia = GENERAL;
 // etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
@@ -71,21 +69,6 @@ async function leerJSON(ruta, esperado) {
   return { datos, sello };
 }
 
-function hace(iso) {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return { txt: "fecha desconocida", horas: Infinity };
-  const hrs = (Date.now() - t) / 36e5;
-  return { horas: hrs, txt: hrs < 1 ? "hace menos de 1 h" : hrs < 48 ? "hace " + Math.round(hrs) + " h" : "hace " + Math.round(hrs / 24) + " días" };
-}
-
-// "2026-10-29T14:40:00Z" -> "29/10/2026 14:40" (hora local de quien mira), o null si no es una fecha
-function fechaHora(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const p = n => String(n).padStart(2, "0");
-  return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
-}
-
 const errorConReintento = (mensaje, id) => h("div", {},
   h("div", { class: "aviso bad", role: "alert" }, mensaje),
   h("p", {}, h("button", { class: "boton sec", onclick: () => mostrarTablero(id) }, "Reintentar")));
@@ -121,23 +104,9 @@ function aplicarGerencia() {
 // Los tableros del grupo de su gerencia van primero.
 const visibles = ts => fuente && fuente.tipo === "graph" ? visiblesParaGerencia(ts, gerencia, etiquetas) : ts;
 
+// Inicio lleva a la portada (#/); va siempre primero, no lo filtra la búsqueda y se marca activo en la portada
 function pintarMenu() {
-  const q = h("input", { type: "search", placeholder: "Buscar tablero…", "aria-label": "Buscar tablero" });
-  const lista = h("div");
-  const grupos = () => {
-    const f = q.value.trim().toLowerCase(), por = new Map();
-    for (const t of visibles(portal.tableros)) {
-      if (f && !(t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f)) continue;
-      const g = t.grupo || "Tableros"; if (!por.has(g)) por.set(g, []); por.get(g).push(t);
-    }
-    lista.replaceChildren(...[...por].flatMap(([g, ts]) => [h("h2", {}, g), ...ts.map(t => h("a", { href: hrefDe(t), "aria-current": t.id === actualId ? "page" : null, title: t.descripcion || null }, icono(t), h("span", {}, t.titulo)))]));
-    if (!por.size) lista.replaceChildren(h("p", { class: "sub-tab relleno" }, "Sin coincidencias."));
-  };
-  q.addEventListener("input", grupos);
-  // Inicio lleva a la portada (#/); va siempre primero, no lo filtra la búsqueda y se marca activo en la portada
-  const inicio = h("a", { href: "#/", class: "inicio", "aria-current": actualId ? null : "page" }, iconoClave("casa"), h("span", {}, "Inicio"));
-  $("lateral").replaceChildren(inicio, q, lista);
-  grupos();
+  $("lateral").replaceChildren(...menuLateral({ tableros: visibles(portal.tableros), actualId, hrefDe, hrefInicio: "#/" }));
 }
 
 // silencioso: relectura automática del tablero ya abierto; no muestra "Cargando…", no toca el menú, conserva la posición de
@@ -164,15 +133,7 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   try {
     const { datos, sello } = await leerJSON(t.archivo, t.sha256);
     if (actualId !== t.id) return;
-    const edad = hace(datos.generado), alas = fechaHora(datos.generado);
-    c.replaceChildren(
-      h("h2", { class: "titulo-tab" }, datos.titulo || t.titulo),
-      ...(datos.subtitulo ? [h("p", { class: "sub-tab" }, datos.subtitulo)] : []),
-      h("div", { class: "fila-chips" },
-        h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok"), title: "Hora de la última publicación de este tablero" }, alas ? "Datos al " + alas + " (" + edad.txt + ")" : "Datos de fecha desconocida"),
-        h("span", { class: "chip " + (sello === "ok" ? "ok" : "warn"), title: sello === "ok" ? "El archivo cuadra con el sha256 del catálogo" : "El catálogo no trae sha256 para este archivo" }, sello === "ok" ? "Sello verificado" : "Sin sello"),
-        datos.fuente ? h("span", { class: "chip" }, "Fuente: " + datos.fuente) : null),
-      pintarBloques(datos.bloques));
+    c.replaceChildren(...tableroView({ titulo: datos.titulo || t.titulo, subtitulo: datos.subtitulo, generado: datos.generado, fuente: datos.fuente, bloques: datos.bloques, sello }));
     document.title = (datos.titulo || t.titulo) + " · SIT";
     if (silencioso) window.scrollTo(0, y);
     ultimaOk = Date.now();
@@ -211,22 +172,7 @@ async function revisarTablero() {
 }
 vigilancia = vigilar(revisarTablero, () => refrescoMin(tableroAbierto(), CONFIG.releerCadaMin));
 
-function portadaPortal() {
-  const edad = hace(portal.generado);
-  const graph = fuente && fuente.tipo === "graph";
-  return h("div", {},
-    graph ? heroGerencia(gerencia, usuario, emblema) : h("h2", { class: "titulo-tab" }, portal.titulo || "SIT"),
-    !graph && portal.subtitulo ? h("p", { class: "sub-tab" }, portal.subtitulo) : null,
-    graph && accesoRoto ? h("div", { class: "aviso warn", role: "status" }, "No se pudo leer tu acceso; por ahora sólo se muestran los tableros generales.") : null,
-    graph ? h("h3", { class: "tus-tableros" }, "Tus tableros") : null,
-    h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, visibles(portal.tableros).length + (visibles(portal.tableros).length === 1 ? " tablero" : " tableros"))),
-    visibles(portal.tableros).length ? h("div", { class: "kpis" }, visibles(portal.tableros).map(t => {
-      const m = t.meta && t.meta.modificado ? hace(t.meta.modificado) : null;
-      return h("a", { class: "kpi enlace", href: hrefDe(t) },
-        h("div", { class: "et" }, t.grupo || "Tableros"), h("div", { class: "val chico" }, t.titulo),
-        h("div", { class: "pie" }, t.descripcion ? h("span", {}, t.descripcion) : null, m ? h("span", {}, "Archivo actualizado " + m.txt) : null));
-    })) : h("div", { class: "aviso warn" }, "Todavía no hay tableros disponibles para tu cuenta."));
-}
+const portadaPortal = () => portadaView({ portal, tableros: visibles(portal.tableros), hrefDe, graph: !!(fuente && fuente.tipo === "graph"), gerencia, usuario, emblema, accesoRoto });
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 
