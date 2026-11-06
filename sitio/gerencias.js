@@ -71,18 +71,21 @@ export function visiblesParaGerencia(tableros, g, etiquetas = null) {
 }
 export const todasLasGerencias = () => [...GERENCIAS, ADMIN, GENERAL];
 
-// Los ids de las gerencias (sin Administrador ni General), por ejemplo para leer el emblema de cada una.
-export const idsDeGerencias = () => GERENCIAS.map(g => g.id);
+// Planeación y Compras pertenecen a Operaciones: en el mapa de Administrador no tienen tarjeta propia y sus tableros salen en la de Operaciones.
+const EN_OPERACIONES = ["planeacion", "compras"];
+
+// Los ids de las gerencias que tienen tarjeta en el mapa (sin Administrador, General, Planeación ni Compras), para leer el emblema de cada una.
+export const idsDeGerencias = () => GERENCIAS.filter(g => !EN_OPERACIONES.includes(g.id)).map(g => g.id);
 
 // Reparto para la portada de Administrador: cada tablero va a UNA gerencia según su grupo (o a General si su grupo no es de ninguna).
-// Planeación pertenece a Operaciones: no tiene tarjeta propia y sus tableros salen en la de Operaciones. Las demás gerencias salen siempre,
-// con sus tableros o vacías; General sólo si le tocó algo. Devuelve [{ gerencia, tableros, lema }].
+// Planeación y Compras se juntan con Operaciones. Las demás gerencias salen siempre, con sus tableros o vacías; General sólo si le tocó algo.
+// Devuelve [{ gerencia, tableros, lema }].
 export function repartoPorGerencia(tableros) {
-  const en = g => g.id === "planeacion" ? GERENCIAS.find(x => x.id === "operaciones") : g;
-  const lista = [...GERENCIAS.filter(g => g.id !== "planeacion"), GENERAL];
+  const en = g => EN_OPERACIONES.includes(g.id) ? GERENCIAS.find(x => x.id === "operaciones") : g;
+  const lista = [...GERENCIAS.filter(g => !EN_OPERACIONES.includes(g.id)), GENERAL];
   const por = new Map(lista.map(g => [g.id, []]));
   for (const t of tableros || []) if (t && typeof t === "object") por.get(en(gerenciaDe(t.grupo)).id).push(t);
-  return lista.map(g => ({ gerencia: g, tableros: por.get(g.id), lema: g.id === "operaciones" ? "Producción, planta y planeación" : g === GENERAL ? "Tableros sin gerencia" : g.lema }))
+  return lista.map(g => ({ gerencia: g, tableros: por.get(g.id), lema: g.id === "operaciones" ? "Producción, planta, planeación y compras" : g === GENERAL ? "Tableros sin gerencia" : g.lema }))
     .filter(x => x.gerencia !== GENERAL || x.tableros.length);
 }
 

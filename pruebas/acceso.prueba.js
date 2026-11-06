@@ -127,24 +127,24 @@ igual(conCarpetas({ toString: ["x"], constructor: ["y"] }), { estado: "entrada",
 igual(conCarpetas({ " Dirección": ["x"] }), { estado: "entrada", etiquetas: ["Dirección"] }, "la etiqueta se compara exacta");
 
 /* ---- reparto para la portada de Administrador ---- */
-const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial" }, { id: "l", grupo: "Ventas Nacional" }, { id: "m", grupo: "Marketing" }, { id: "n", grupo: "Producción planta" }, { id: "o", grupo: "Planeación" }, { id: "q", grupo: "Planeación y demanda" }, null, undefined]);
+const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial" }, { id: "l", grupo: "Ventas Nacional" }, { id: "m", grupo: "Marketing" }, { id: "n", grupo: "Producción planta" }, { id: "o", grupo: "Planeación" }, { id: "q", grupo: "Planeación y demanda" }, { id: "r", grupo: "Compras" }, null, undefined]);
 const todos = REP.flatMap(x => x.tableros.map(t => t.id));
-igual(todos.length, T.length + 6, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
+igual(todos.length, T.length + 7, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
 igual(new Set(todos).size, todos.length, "reparto: ningún tablero repetido");
-igual(REP.filter(x => x.gerencia !== GENERAL).length, 10, "reparto: las diez gerencias (Planeación va dentro de Operaciones) siempre salen");
+igual(REP.filter(x => x.gerencia !== GENERAL).length, 9, "reparto: las nueve gerencias (Planeación y Compras van dentro de Operaciones) siempre salen");
 igual(REP.find(x => x.gerencia.id === "comercial").tableros.map(t => t.id), ["a", "e", "k", "l", "m"], "reparto: Subdirección Comercial, Ventas y Marketing son Comercial");
-igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n", "o", "q"], "reparto: Operaciones, producción y los tableros de Planeación");
+igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n", "o", "q", "r"], "reparto: Operaciones, producción y los tableros de Planeación y de Compras");
 igual(REP.find(x => x.gerencia.id === "direccion").tableros.map(t => t.id), ["f"], "reparto: el grupo Dirección");
 igual(REP.find(x => x.gerencia.id === "calidad").tableros, [], "reparto: una gerencia sin tableros sale vacía");
 igual(REP.find(x => x.gerencia === GENERAL).tableros.map(t => t.id), ["c", "d", "g", "i", "j"], "reparto: sin grupo, General y grupos desconocidos van a General");
-igual(repartoPorGerencia([]).length, 10, "reparto: sin tableros no sale General");
-igual(repartoPorGerencia(undefined).length, 10, "reparto: sin lista");
+igual(repartoPorGerencia([]).length, 9, "reparto: sin tableros no sale General");
+igual(repartoPorGerencia(undefined).length, 9, "reparto: sin lista");
 igual(REP.every(x => x.tableros.every(t => t && typeof t.id === "string")), true, "reparto: sólo tableros");
-igual(REP.some(x => x.gerencia.id === "planeacion"), false, "reparto: Planeación no tiene tarjeta propia");
-igual(REP.find(x => x.gerencia.id === "operaciones").lema, "Producción, planta y planeación", "reparto: el lema de Operaciones incluye planeación");
+igual(REP.some(x => x.gerencia.id === "planeacion" || x.gerencia.id === "compras"), false, "reparto: Planeación y Compras no tienen tarjeta propia");
+igual(REP.find(x => x.gerencia.id === "operaciones").lema, "Producción, planta, planeación y compras", "reparto: el lema de Operaciones incluye planeación y compras");
 igual(REP.find(x => x.gerencia.id === "comercial").lema, "Venta, clientes y mercados", "reparto: las demás conservan su lema");
 igual(REP.find(x => x.gerencia === GENERAL).lema, "Tableros sin gerencia", "reparto: lema de General");
-igual(idsDeGerencias().length === 11 && idsDeGerencias().includes("planeacion") && !idsDeGerencias().includes("administrador") && !idsDeGerencias().includes("general"), true, "idsDeGerencias: las once gerencias reales, para leer sus emblemas");
+igual(idsDeGerencias().length === 9 && idsDeGerencias().includes("operaciones") && !idsDeGerencias().includes("planeacion") && !idsDeGerencias().includes("compras") && !idsDeGerencias().includes("administrador") && !idsDeGerencias().includes("general"), true, "idsDeGerencias: las nueve gerencias con tarjeta, para leer sus emblemas");
 
 /* ---- perfil y leerAcceso con un servidor simulado ---- */
 const memoria = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), get claves() { return [...m.keys()]; }, volcado: () => JSON.stringify([...m]) }; };
