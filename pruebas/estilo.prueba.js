@@ -37,6 +37,12 @@ const landing = leer("../sitio/landing.js");
 igual(/h\("h1", \{ class: "landing-titulo" \}, "Sistema de Información Tornel"\)/.test(landing), true, "landing.js: el título de la portada es el nombre del sistema");
 igual(/en un solo lugar/.test(landing), false, "landing.js: ya no queda el título anterior");
 
+/* pantallas táctiles: zonas de toque de 44 px en el encabezado y el menú, sin tocar el escritorio */
+const tactil = css.slice(css.indexOf("@media (pointer: coarse)"));
+igual(tactil.length > 100, true, "estilo.css: hay reglas para pantallas táctiles");
+igual(/\.pastilla, nav\.lateral input \{ min-height: 44px; \}/.test(tactil) && /details\.gm > summary \{ min-height: 44px; \}/.test(tactil) && /nav\.lateral \.gm-items a \{[^}]*min-height: 44px/.test(tactil), true, "estilo.css: botones, buscador, renglón de gerencia y tableros miden 44 px al tacto");
+igual(/gradient\(|box-shadow|transition:|animation:/i.test(tactil), false, "estilo.css: las reglas táctiles no agregan efectos");
+
 /* menú compacto: reglas del renglón de gerencia, de sus tableros, de la flecha y del foco; sin efectos que el manual prohíbe */
 const menuCss = css.slice(css.indexOf("/* menú lateral compacto"));
 igual(menuCss.length > 400, true, "estilo.css: está el bloque del menú compacto");
