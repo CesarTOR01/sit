@@ -1,7 +1,11 @@
 """
 crear_acceso.py — arma sit-acceso.json (catálogo de acceso de SIT) a partir de una hoja local de correo y etiquetas.
 
-    python crear_acceso.py --hoja <hoja.csv|hoja.xlsx> --salida <carpeta\\sit-acceso.json>
+    python crear_acceso.py --hoja <hoja.csv|hoja.xlsx> --salida <carpeta\\sit-acceso.json> [--carpetas "Etiqueta=carpeta1,carpeta2" ...]
+
+--carpetas (repetible) dice qué carpetas hermanas de la del enlace lee cada etiqueta, por ejemplo --carpetas "Dirección=facturacion,indicadores".
+La etiqueta "Administrador" no la necesita: lee todas las carpetas hermanas que tengan catálogo. Las carpetas "acceso" y "marca" son del
+propio sitio y no se aceptan.
 
 La hoja tiene una columna "correo" (el correo con el que la persona inicia sesión, su nombre de usuario; si no coincide, la
 persona cae al Departamento) y una columna "etiquetas" (varias, separadas por punto y coma). Una etiqueta es el nombre de
@@ -25,6 +29,9 @@ from datetime import datetime, timezone
 
 MAX_ETIQUETAS = 20
 MAX_LARGO = 64
+MAX_CARPETAS = 20
+NOMBRE_CARPETA = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+RESERVADAS = ("acceso", "marca")
 CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -85,8 +92,29 @@ def armar(filas):
     return personas, errores
 
 
-def escribir(salida, personas):
+def armar_carpetas(especificaciones):
+    """De 'Etiqueta=carpeta1,carpeta2' a {etiqueta: [carpetas]}. Devuelve (carpetas, errores)."""
+    carpetas, errores = {}, []
+    for esp in especificaciones:
+        etiqueta, _, lista = esp.partition("=")
+        etiqueta = etiqueta.strip()
+        nombres = [n.strip() for n in lista.split(",") if n.strip()]
+        if not etiqueta or len(etiqueta) > MAX_LARGO or not nombres:
+            errores.append("--carpetas: use Etiqueta=carpeta1,carpeta2")
+            continue
+        malas = [n for n in nombres if not NOMBRE_CARPETA.match(n) or n.lower() in RESERVADAS]
+        if malas or len(nombres) > MAX_CARPETAS:
+            errores.append("--carpetas: la etiqueta %r trae nombres no válidos, reservados o más de %d carpetas" % (etiqueta, MAX_CARPETAS))
+            continue
+        carpetas.setdefault(etiqueta, [])
+        carpetas[etiqueta] += [n for n in nombres if n not in carpetas[etiqueta]]
+    return carpetas, errores
+
+
+def escribir(salida, personas, carpetas=None):
     datos = {"contrato": "acceso/1", "generado": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "personas": personas}
+    if carpetas:
+        datos["carpetas"] = carpetas
     temporal = salida + ".escribiendo"
     with open(temporal, "w", encoding="utf-8", newline="\n") as f:
         json.dump(datos, f, ensure_ascii=False, indent=1)
@@ -107,12 +135,14 @@ def main(argv):
         print("crear_acceso: la hoja necesita las columnas correo y etiquetas.")
         return 1
     personas, errores = armar(filas)
-    for e in errores:
+    especificaciones = [argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--carpetas"]
+    carpetas, errores_carpetas = armar_carpetas(especificaciones)
+    for e in errores + errores_carpetas:
         print("crear_acceso:", e)
-    if errores:
+    if errores or errores_carpetas:
         return 1
-    escribir(salida, personas)
-    print("crear_acceso: %d personas escritas." % len(personas))
+    escribir(salida, personas, carpetas)
+    print("crear_acceso: %d personas escritas%s." % (len(personas), " y las carpetas de %d etiquetas" % len(carpetas) if carpetas else ""))
     return 0
 
 

@@ -219,7 +219,7 @@ body { --acento: var(--accion); }
 [data-gerencia="planeacion"] { --acento: var(--acc-planeacion); }
 [data-gerencia="rrhh"] { --acento: var(--acc-rrhh); }
 [data-gerencia="sistemas"] { --acento: var(--acc-sistemas); }
-[data-gerencia="direccion"] { --acento: var(--acc-direccion); }
+[data-gerencia="direccion"], [data-gerencia="administrador"] { --acento: var(--acc-direccion); }
 .hero-gerencia { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: center; margin-bottom: 20px; padding: 20px 24px; border-radius: 14px; border: 1px solid var(--linea); border-left: 6px solid var(--acento); background: color-mix(in srgb, var(--acento) 9%, var(--tarjeta)); }
 .hero-nombre { margin: 0 0 4px; font-size: clamp(26px, 3.4vw, 34px); line-height: 1.1; font-weight: 700; }
 .hero-lema { margin: 0 0 10px; font-size: 17px; color: var(--tinta2); }
@@ -341,3 +341,14 @@ td:first-child { font-weight: 700; }
 
 /* en teléfono el encabezado de la gerencia va en una sola columna (una regla anterior lo dejaba en dos y el texto se encimaba con el emblema) */
 @media (max-width: 860px) { .hero-gerencia { grid-template-columns: minmax(0, 1fr); } }
+
+/* portada de Administrador: una tarjeta por gerencia, con el acento de cada una */
+.mapa-gerencias { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; margin-top: 12px; }
+.mapa-gerencia { min-width: 0; padding: 16px; border: 1px solid var(--linea); border-top: 4px solid var(--acento); border-radius: 14px; background: var(--tarjeta); }
+.mapa-gerencia h3 { margin: 0; font-size: 17px; }
+.mapa-lema { margin: 2px 0 0; color: var(--tinta2); font-size: 13px; }
+.mapa-cuenta { margin: 10px 0 6px; font-size: 12px; color: var(--tinta2); font-weight: 700; }
+.mapa-gerencia ul { list-style: none; margin: 0; padding: 0; }
+.mapa-gerencia li { margin: 2px 0; }
+.mapa-gerencia li a { display: block; padding: 6px 8px; border-radius: 8px; color: var(--tinta); text-decoration: none; overflow-wrap: anywhere; }
+.mapa-gerencia li a:hover { background: var(--fondo); }

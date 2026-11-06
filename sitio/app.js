@@ -18,13 +18,14 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, GENERAL } from "./gerencias.js";
+import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, esAdministrador, GENERAL } from "./gerencias.js";
 import { menuLateral, portadaView, tableroView } from "./vistas.js";
+import { carpetasALeer, unirCatalogos, nombreDeCarpeta } from "./catalogos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, perfil, leerAcceso, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, leerAcceso, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -37,6 +38,10 @@ let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.jso
 // etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
 // accesoRoto: el catálogo de acceso existe pero no se pudo usar y se muestra sólo lo general
 let etiquetas = null, accesoRoto = false;
+// extras: qué carpetas hermanas le tocan a la persona ({ admin, carpetas }, null = sólo la del enlace); hermanas: su fuente por nombre de carpeta
+let extras = null;
+const hermanas = new Map();
+const fuenteDe = t => (t && t.origen && hermanas.get(t.origen)) || fuente;
 // emblema oficial de su gerencia, leído de la carpeta `marca` con su cuenta (null = se muestra la ilustración de respaldo)
 let emblema = null;
 
@@ -54,9 +59,9 @@ $("tema").addEventListener("click", () => {
 $("menu-btn").addEventListener("click", () => { const a = $("lateral").classList.toggle("abierto"); $("menu-btn").setAttribute("aria-expanded", a); });
 
 /* ---------- lectura con control ---------- */
-async function leerJSON(ruta, esperado) {
+async function leerJSON(ruta, esperado, f = fuente) {
   let buf;
-  try { buf = await fuente.leer(ruta); } catch (e) { const err = new Error(textoError(e)); err.origen = e; throw err; }
+  try { buf = await f.leer(ruta); } catch (e) { const err = new Error(textoError(e)); err.origen = e; throw err; }
   let sello = "sin";
   if (esperado) {
     const real = await sha256(buf);
@@ -131,7 +136,7 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   if (t.tipo === "embebido") { location.replace(hrefDe(t)); return; }
   if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
   try {
-    const { datos, sello } = await leerJSON(t.archivo, t.sha256);
+    const { datos, sello } = await leerJSON(t.archivo, t.sha256, fuenteDe(t));
     if (actualId !== t.id) return;
     c.replaceChildren(...tableroView({ titulo: datos.titulo || t.titulo, subtitulo: datos.subtitulo, generado: datos.generado, fuente: datos.fuente, bloques: datos.bloques, sello }));
     document.title = (datos.titulo || t.titulo) + " · SIT";
@@ -164,7 +169,7 @@ async function revisarTablero() {
   const t = tableroAbierto();
   if (document.hidden || !t || !fuente || fuente.tipo !== "graph" || t.tipo === "embebido") return true;
   try {
-    const ahora = await fuente.metadatos(t.archivo);
+    const ahora = await fuenteDe(t).metadatos(t.archivo);
     if (cambio(t.meta, ahora) && actualId === t.id && !(await mostrarTablero(t.id, { silencioso: true }))) throw new Error("no se pudo leer");
     ultimaOk = Date.now(); avisoRelectura(false);
     return true;
@@ -188,8 +193,8 @@ function mostrarCatalogoVacio() {
 
 // Lee el catálogo EN LÍNEA (nunca de una copia) y, en la organización, deja sólo los tableros cuyo archivo esta
 // persona puede leer en este momento. Se llama al conectar y cada vez que se abre un tablero.
-async function cargarCatalogo(f, archivo) {
-  const { datos } = await leerJSON(archivo);
+async function cargarCatalogo(f, archivo, conHermanas = true) {
+  const { datos } = await leerJSON(archivo, undefined, f);
   if (!Array.isArray(datos.tableros)) throw new Error("El catálogo no trae la lista “tableros”.");
   const ids = new Set();
   for (const t of datos.tableros) {
@@ -203,7 +208,25 @@ async function cargarCatalogo(f, archivo) {
     if (duro) throw new Error(textoError(duro.reason));
     datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
   }
+  if (conHermanas && f.tipo === "graph") datos.tableros = unirCatalogos(datos.tableros, await cargarHermanas(f));
   return datos;
+}
+
+// Los catálogos de las carpetas hermanas que le tocan a la persona (Administrador: todas las que existen; otra etiqueta: las que su lista nombra).
+// Cada una se lee con la cuenta de la persona; la que no se pueda leer se omite sin avisar y el sitio sigue con las demás.
+async function cargarHermanas(f) {
+  hermanas.clear();
+  if (!extras) return [];
+  const existentes = extras.admin ? await listarHermanas(f) : [];
+  const nombres = carpetasALeer({ administrador: extras.admin, existentes, configuradas: extras.carpetas, propia: nombreDeCarpeta(f.carpeta) });
+  const res = await Promise.allSettled(nombres.map(async n => {
+    const fh = fuenteHermana(f, n);
+    if (!fh) throw new Error("sin carpeta");
+    const d = await cargarCatalogo(fh, CONFIG.catalogo, false);
+    hermanas.set(n, fh);
+    return { carpeta: n, tableros: d.tableros };
+  }));
+  return res.filter(r => r.status === "fulfilled").map(r => r.value);
 }
 
 async function conectar(f, archivo) {
@@ -260,7 +283,7 @@ async function conectarSesion() {
     return;
   }
   const p = await perfil().catch(() => ({}));
-  usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento); etiquetas = null; accesoRoto = false;
+  usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento); etiquetas = null; accesoRoto = false; extras = null;
   // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
   const id = tomarPendiente();
   // un enlace que no abre la carpeta ya guardada se confirma a la vista de la persona, con el dominio y la carpeta de origen
@@ -281,7 +304,7 @@ async function conectarSesion() {
   catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
   // el catálogo de acceso reemplaza al departamento; si existe y no se puede usar, sólo se muestra lo general
   const acceso = await leerAcceso(fuente, p.llave);
-  if (acceso.estado === "entrada") { etiquetas = acceso.etiquetas; gerencia = gerenciaDeEtiquetas(etiquetas); }
+  if (acceso.estado === "entrada") { etiquetas = acceso.etiquetas; gerencia = gerenciaDeEtiquetas(etiquetas); extras = { admin: esAdministrador(etiquetas), carpetas: acceso.carpetas || [] }; }
   else if (acceso.estado === "roto") { etiquetas = ["General"]; gerencia = GENERAL; accesoRoto = true; }
   emblema = gerencia === GENERAL ? null : await leerEmblemas(fuente, gerencia.id);
   await conectar(fuente, CONFIG.catalogo);
@@ -290,13 +313,13 @@ async function conectarSesion() {
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null;
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });

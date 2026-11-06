@@ -18,6 +18,8 @@ const GERENCIAS = [
   { id: "direccion", nombre: "Dirección", lema: "La empresa completa", claves: ["direccion", "director", "gerencia general", "ejecutivo", "presidencia"] },
 ];
 export const GENERAL = { id: "general", nombre: "SIT", lema: "Los tableros de tu cuenta" };
+// Identidad de quien administra: ve todas las gerencias y todos los tableros que su cuenta puede leer. Sólo existe como etiqueta del catálogo de acceso.
+export const ADMIN = { id: "administrador", nombre: "Administrador", lema: "Todas las gerencias y todos los tableros" };
 
 const sinAcentos = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
@@ -36,14 +38,16 @@ export const esGrupoDe = (grupo, g) => {
 // Una etiqueta del catálogo de acceso es el nombre exacto de una gerencia (o su id) o "General"; otra cosa no es una gerencia.
 const gerenciaDeEtiqueta = e => {
   const k = sinAcentos(e);
-  return k === "general" ? GENERAL : GERENCIAS.find(g => k === sinAcentos(g.nombre) || k === g.id) || null;
+  return k === "general" ? GENERAL : [ADMIN, ...GERENCIAS].find(g => k === sinAcentos(g.nombre) || k === g.id) || null;
 };
+// La persona del catálogo de acceso es administradora si trae la etiqueta Administrador.
+export const esAdministrador = etiquetas => (etiquetas || []).some(e => gerenciaDeEtiqueta(e) === ADMIN);
 const esGeneral = t => !t.grupo || sinAcentos(t.grupo) === "general";
 
-// La identidad de quien está en el catálogo de acceso: Dirección si la trae; si no, la primera gerencia que reconoce; si no, general.
+// La identidad de quien está en el catálogo de acceso: Administrador si la trae; si no, Dirección; si no, la primera gerencia que reconoce; si no, general.
 export function gerenciaDeEtiquetas(etiquetas) {
   const gs = (etiquetas || []).map(gerenciaDeEtiqueta).filter(Boolean);
-  return gs.find(g => g.id === "direccion") || gs.find(g => g !== GENERAL) || GENERAL;
+  return gs.find(g => g === ADMIN) || gs.find(g => g.id === "direccion") || gs.find(g => g !== GENERAL) || GENERAL;
 }
 
 // Lo que la persona ve: sólo los tableros de su gerencia. Dirección ve todos los que su cuenta puede leer; sin gerencia
@@ -51,21 +55,29 @@ export function gerenciaDeEtiquetas(etiquetas) {
 // lo decide SharePoint con los permisos de la cuenta.
 // Con `etiquetas` (la entrada de la persona en el catálogo de acceso) se usan ellas en lugar del departamento: un tablero se ve si
 // su grupo es de alguna gerencia de las etiquetas, si su grupo es exactamente una etiqueta o si alguna de sus `audiencias` lo es.
-// "Dirección" sólo vale como etiqueta; un tablero no se la puede dar a nadie.
+// "Dirección" y "Administrador" sólo valen como etiqueta; un tablero no se las puede dar a nadie.
 export function visiblesParaGerencia(tableros, g, etiquetas = null) {
   if (!etiquetas) {
-    if (g.id === "direccion") return [...tableros];
+    if (g.id === "direccion" || g === ADMIN) return [...tableros];
     if (g === GENERAL) return tableros.filter(esGeneral);
     return tableros.filter(t => esGrupoDe(t.grupo, g));
   }
   const gs = etiquetas.map(gerenciaDeEtiqueta).filter(Boolean);
-  if (gs.some(x => x.id === "direccion")) return [...tableros];
+  if (gs.some(x => x.id === "direccion" || x === ADMIN)) return [...tableros];
   return tableros.filter(t =>
     (typeof t.grupo === "string" && etiquetas.includes(t.grupo)) ||
     (Array.isArray(t.audiencias) && t.audiencias.some(a => typeof a === "string" && etiquetas.includes(a))) ||
     gs.some(x => x === GENERAL ? esGeneral(t) : esGrupoDe(t.grupo, x)));
 }
-export const todasLasGerencias = () => [...GERENCIAS, GENERAL];
+export const todasLasGerencias = () => [...GERENCIAS, ADMIN, GENERAL];
+
+// Reparto para la portada de Administrador: cada tablero va a UNA gerencia según su grupo (o a General si su grupo no es de ninguna).
+// Las once gerencias salen siempre, con sus tableros o vacías; General sólo si le tocó algo. Devuelve [{ gerencia, tableros }].
+export function repartoPorGerencia(tableros) {
+  const por = new Map([...GERENCIAS, GENERAL].map(g => [g.id, []]));
+  for (const t of tableros || []) if (t && typeof t === "object") por.get(gerenciaDe(t.grupo).id).push(t);
+  return [...GERENCIAS, GENERAL].map(g => ({ gerencia: g, tableros: por.get(g.id) })).filter(x => x.gerencia !== GENERAL || x.tableros.length);
+}
 
 /* ---- ilustraciones (viewBox 0 0 320 180) ---- */
 const r = (x, y, w, hh, cl, rx = 4) => s("rect", { x, y, width: w, height: hh, rx, class: cl });
@@ -120,6 +132,7 @@ const ARTE = {
     l(8, 152, 312, 152, "g-base")],
 };
 ARTE.general = ARTE.direccion;
+ARTE.administrador = ARTE.direccion;
 
 export function ilustracion(id) {
   return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (id || "SIT") }, c(160, 90, 100, "g-anillo"), c(176, 82, 86, "g-anillo"), ...(ARTE[id] || ARTE.general)());

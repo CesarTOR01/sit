@@ -1,8 +1,8 @@
 // Pruebas del catálogo de acceso, sin navegador ni red: node pruebas/acceso.prueba.mjs
 // Usa correos y dominios ficticios (dominio reservado .invalid) y un servidor simulado de SharePoint y Graph.
 import { createHash } from "node:crypto";
-import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "../sitio/acceso.js";
-import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, GENERAL } from "../sitio/gerencias.js";
+import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES, MAX_CARPETAS } from "../sitio/acceso.js";
+import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esAdministrador, repartoPorGerencia, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
 
 let ok = 0, mal = 0;
 const igual = (a, b, nombre) => {
@@ -97,6 +97,49 @@ igual(ids(visiblesParaGerencia(T, gerenciaDe("Ventas"))), ["a", "e"], "sin etiqu
 igual(ids(visiblesParaGerencia(T, gerenciaDe(""))), ["c", "d"], "sin etiquetas ni departamento: general");
 igual(ids(visiblesParaGerencia(T, gerenciaDe("Dirección general"))), ids(T), "sin etiquetas: Dirección por departamento");
 
+/* ---- Administrador: ve todo y manda sobre Dirección ---- */
+igual(ver(["Administrador"]), ids(T), "Administrador ve todo");
+igual(ver(["administrador"]), ids(T), "Administrador sin mayúscula");
+igual(gerenciaDeEtiquetas(["Dirección", "Administrador"]) === ADMIN, true, "identidad: Administrador antes que Dirección");
+igual(gerenciaDeEtiquetas(["Comercial", "Administrador"]) === ADMIN, true, "identidad: Administrador antes que una gerencia");
+igual(esAdministrador(["Comercial", "Administrador"]), true, "esAdministrador: con la etiqueta");
+igual(esAdministrador(["Dirección"]), false, "esAdministrador: Dirección no lo es");
+igual(esAdministrador(["Admin"]), false, "esAdministrador: comparación exacta");
+igual(esAdministrador(null), false, "esAdministrador: sin etiquetas");
+igual(ids(visiblesParaGerencia(T, ADMIN)), ids(T), "sin etiquetas, la identidad Administrador ve todo");
+igual(ver(["Comercial"]).includes("h"), false, "un tablero tampoco da Administrador con su audiencia");
+igual(todasLasGerencias().some(g => g === ADMIN), true, "Administrador está en la lista de identidades");
+igual(gerenciaDe("Administrador") === GENERAL, true, "el departamento Administrador no da la identidad: sólo el catálogo de acceso");
+
+/* ---- carpetas que lee cada etiqueta (campo opcional `carpetas`) ---- */
+const conCarpetas = (carpetas, etiquetas = ["Dirección"]) => interpretarAcceso(JSON.stringify({ contrato: "acceso/1", personas: { [K]: etiquetas }, carpetas }), K);
+igual(conCarpetas({ "Dirección": ["facturacion", "indicadores"] }), { estado: "entrada", etiquetas: ["Dirección"], carpetas: ["facturacion", "indicadores"] }, "carpetas de la etiqueta");
+igual(conCarpetas({ "Comercial": ["ventas"] }), { estado: "entrada", etiquetas: ["Dirección"] }, "carpetas de otra etiqueta no cuentan");
+igual(conCarpetas({ "Dirección": ["a"], "Comercial": ["b", "a"] }, ["Dirección", "Comercial"]).carpetas, ["a", "b"], "se juntan las de varias etiquetas sin repetir");
+igual(conCarpetas({ "Dirección": ["../otra", "a/b", "ok", "con espacio", "", 5, null, "a\\b"] }).carpetas, ["ok"], "nombres no válidos se ignoran");
+igual(conCarpetas({ "Dirección": ["acceso", "MARCA", "util"] }).carpetas, ["util"], "las carpetas reservadas del sitio no se leen como tableros");
+igual(conCarpetas({ "Dirección": "facturacion" }), { estado: "entrada", etiquetas: ["Dirección"] }, "lista que no es lista: se ignora, el acceso sigue");
+igual(conCarpetas("facturacion"), { estado: "entrada", etiquetas: ["Dirección"] }, "campo que no es objeto: se ignora, el acceso sigue");
+igual(conCarpetas([["x"]]), { estado: "entrada", etiquetas: ["Dirección"] }, "campo que es arreglo: se ignora");
+igual(conCarpetas({ "Dirección": Array.from({ length: 30 }, (_, i) => "c" + i) }).carpetas.length, MAX_CARPETAS, "tope de carpetas");
+igual(conCarpetas({ toString: ["x"], constructor: ["y"] }), { estado: "entrada", etiquetas: ["Dirección"] }, "nombres de propiedad heredada no cuentan");
+igual(conCarpetas({ " Dirección": ["x"] }), { estado: "entrada", etiquetas: ["Dirección"] }, "la etiqueta se compara exacta");
+
+/* ---- reparto para la portada de Administrador ---- */
+const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial" }, { id: "l", grupo: "Ventas Nacional" }, { id: "m", grupo: "Marketing" }, { id: "n", grupo: "Producción planta" }, null, undefined]);
+const todos = REP.flatMap(x => x.tableros.map(t => t.id));
+igual(todos.length, T.length + 4, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
+igual(new Set(todos).size, todos.length, "reparto: ningún tablero repetido");
+igual(REP.filter(x => x.gerencia !== GENERAL).length, 11, "reparto: las once gerencias siempre salen");
+igual(REP.find(x => x.gerencia.id === "comercial").tableros.map(t => t.id), ["a", "e", "k", "l", "m"], "reparto: Subdirección Comercial, Ventas y Marketing son Comercial");
+igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n"], "reparto: Operaciones y producción");
+igual(REP.find(x => x.gerencia.id === "direccion").tableros.map(t => t.id), ["f"], "reparto: el grupo Dirección");
+igual(REP.find(x => x.gerencia.id === "calidad").tableros, [], "reparto: una gerencia sin tableros sale vacía");
+igual(REP.find(x => x.gerencia === GENERAL).tableros.map(t => t.id), ["c", "d", "g", "i", "j"], "reparto: sin grupo, General y grupos desconocidos van a General");
+igual(repartoPorGerencia([]).length, 11, "reparto: sin tableros no sale General");
+igual(repartoPorGerencia(undefined).length, 11, "reparto: sin lista");
+igual(REP.every(x => x.tableros.every(t => t && typeof t.id === "string")), true, "reparto: sólo tableros");
+
 /* ---- perfil y leerAcceso con un servidor simulado ---- */
 const memoria = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), get claves() { return [...m.keys()]; }, volcado: () => JSON.stringify([...m]) }; };
 globalThis.sessionStorage = memoria();
@@ -139,6 +182,28 @@ igual(peticiones.length, 1, "leerAcceso: el archivo demasiado grande no se baja"
 igual(await acceso(sirve(entradaAna), esperado, new FuenteSP("h.invalid", "/personal/u/Documents/Sola")), { estado: "sin-catalogo" }, "leerAcceso: carpeta sin padre");
 igual(peticiones.length, 0, "leerAcceso: sin padre no hay ninguna petición");
 igual(await acceso(sirve(entradaAna), esperado, { tipo: "carpeta" }), { estado: "sin-catalogo" }, "leerAcceso: una fuente local no busca acceso");
+
+/* ---- carpetas hermanas: enumerar y abrir ---- */
+const { listarHermanas, fuenteHermana } = await import("../sitio/graph.js");
+const respuestaCarpetas = { value: [{ Name: "facturacion" }, { Name: "acceso" }, { Name: "marca" }, { Name: "indicadores" }, { Nombre: "x" }, { Name: 5 }] };
+peticiones = []; servidor = u => u.includes("/Folders") ? { estado: 200, json: respuestaCarpetas } : { estado: 404 };
+igual(await listarHermanas(fuente), ["facturacion", "acceso", "marca", "indicadores"], "listarHermanas: los nombres de las carpetas junto a la del enlace");
+igual(peticiones.length === 1 && decodeURIComponent(peticiones[0]).includes("(decodedurl='/personal/u/Documents/Raiz')"), true, "listarHermanas: lista la carpeta padre, no la del enlace");
+igual(peticiones.every(u => u.startsWith("https://h.invalid/")), true, "listarHermanas: en el mismo dominio");
+servidor = () => ({ estado: 403 });
+igual(await listarHermanas(fuente), [], "listarHermanas: sin permiso devuelve lista vacía, sin error");
+servidor = () => ({ estado: 200, json: { value: "no es lista" } });
+igual(await listarHermanas(fuente), [], "listarHermanas: respuesta mal formada");
+peticiones = [];
+igual(await listarHermanas(new FuenteSP("h.invalid", "/personal/u/Documents/Sola")), [], "listarHermanas: sin carpeta padre en la biblioteca");
+igual(await listarHermanas({ tipo: "carpeta" }), [], "listarHermanas: una fuente local no enumera nada");
+igual(peticiones.length, 0, "listarHermanas: en esos casos no hay peticiones");
+const hermana = fuenteHermana(fuente, "facturacion");
+igual([hermana.host, hermana.carpeta, hermana.tipo], ["h.invalid", "/personal/u/Documents/Raiz/facturacion", "graph"], "fuenteHermana: la carpeta junto a la del enlace");
+igual(fuenteHermana(fuente, "../otra"), null, "fuenteHermana: sin salirse de la biblioteca");
+igual(fuenteHermana(fuente, "a/b"), null, "fuenteHermana: un solo nombre, sin diagonales");
+igual(fuenteHermana({ tipo: "carpeta" }, "x"), null, "fuenteHermana: una fuente local no tiene hermanas");
+igual(fuenteHermana(new FuenteSP("h.invalid", "/personal/u/Documents/Sola"), "x"), null, "fuenteHermana: sin padre");
 
 // nada del correo ni de su hash se guardó en el navegador
 const despues = sessionStorage.volcado() + localStorage.volcado();

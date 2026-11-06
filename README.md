@@ -10,8 +10,9 @@ cada archivo cuando el catálogo lo trae.
   - `auth.js`, `graph.js`, `config.js`: inicio de sesión con PKCE; el perfil se lee con Microsoft Graph y los archivos con la API REST de SharePoint.
 - `herramientas/sellar_portal.py`: pone el sha256 y el tamaño de cada tablero en el catálogo.
 - `herramientas/crear_marcador.py`: arma la dirección de SIT con la dirección de la carpeta del catálogo en el fragmento (`#c=...`).
-- `herramientas/crear_acceso.py`: arma `sit-acceso.json` (catálogo de acceso) a partir de una hoja local de correo y etiquetas; el archivo lleva el hash del correo, no el correo.
-- `pruebas/acceso.prueba.js`: pruebas del catálogo de acceso con datos ficticios (`node pruebas/acceso.prueba.js`).
+- `herramientas/crear_acceso.py`: arma `sit-acceso.json` (catálogo de acceso) a partir de una hoja local de correo y etiquetas, con `--carpetas "Etiqueta=carpeta1,carpeta2"` para las carpetas que lee cada etiqueta; el archivo lleva el hash del correo, no el correo.
+  - `vistas.js`: menú, portada (con el mapa de gerencias de Administrador) y vista de tablero, compartidas por el sitio y la maqueta local; `catalogos.js`: unión de los catálogos de carpetas hermanas.
+- `pruebas/*.prueba.js`: pruebas con datos ficticios, sin navegador (`node pruebas/acceso.prueba.js`, `catalogos`, `vistas`, `iconos`, `emblemas`, `estilo`); `acceso` cubre el catálogo de acceso, las identidades y la lectura de carpetas hermanas con un servidor simulado.
 - `.github/workflows/pages.yml`: publica `sitio/` en Pages al subir a `main`.
 
 No lleva secretos: el inicio de sesión usa el flujo de código con PKCE de una aplicación de página única.
@@ -32,6 +33,7 @@ El tablero abierto se vuelve a leer solo: al volver a ver la pestaña (si pasaro
 El filtro por gerencia sólo decide qué tableros se muestran; la barrera real son los permisos de cada carpeta de SharePoint. Por omisión la gerencia sale del campo Departamento del perfil. Si junto a la carpeta del enlace hay una carpeta hermana `acceso` con `sit-acceso.json` (contrato `acceso/1`), la entrada de la persona en ese archivo reemplaza al Departamento:
 
 - La llave es el SHA-256 del correo en minúsculas, calculado en el navegador con el perfil de quien entra; el valor es una lista de etiquetas (una gerencia, "Dirección", "General" o una audiencia).
-- Un tablero se muestra si su `grupo` es de alguna gerencia de las etiquetas, si su `grupo` es exactamente una etiqueta o si alguna de sus `audiencias` (campo opcional del catálogo) lo es. "Dirección" ve todo lo que su cuenta puede leer, y sólo vale como etiqueta: ningún tablero la otorga.
+- Un tablero se muestra si su `grupo` es de alguna gerencia de las etiquetas, si su `grupo` es exactamente una etiqueta o si alguna de sus `audiencias` (campo opcional del catálogo) lo es. "Dirección" y "Administrador" ven todo lo que su cuenta puede leer, y sólo valen como etiqueta: ningún tablero las otorga. "Administrador" además abre, en lugar de la lista, una portada con todas las gerencias y sus tableros, y pesa más que "Dirección" si la persona trae ambas.
+- Carpetas: la persona lee los tableros de la carpeta de su enlace. `sit-acceso.json` puede traer un campo opcional `carpetas` (`{ "Dirección": ["facturacion", "indicadores"] }`) con las carpetas hermanas que lee cada etiqueta; "Administrador" lee todas las hermanas que tengan catálogo, sin lista. Lo que la cuenta no pueda leer se omite sin aviso, y los tableros embebidos sólo se abren si están en la carpeta del enlace. Las carpetas `acceso` y `marca` son del sitio y no se leen como tableros.
 - Sin entrada, o si no existe el catálogo de acceso, se usa el Departamento. Si el archivo existe y no se puede leer o está mal formado, se muestran sólo los tableros generales y un aviso.
 - La ruta del catálogo de acceso no sale de ningún archivo: es la carpeta hermana de la del enlace. El correo y su hash no se guardan, no se imprimen y no van en ningún aviso.

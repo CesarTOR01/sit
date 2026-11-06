@@ -130,6 +130,15 @@ export class FuenteSP {
     return this.base() + "/_api/web/GetFileByServerRelativePath(decodedurl='" + p.split("/").map(s => encodeURIComponent(s.replace(/'/g, "''"))).join("/") + "')";
   }
   pedir(url, init) { return pedir(url, "sp", "SharePoint", init); }
+  // Los nombres de las carpetas que hay dentro de esta carpeta (sólo nombres). Si no se puede leer, devuelve [].
+  async subcarpetas() {
+    try {
+      const ruta = this.carpeta.split("/").map(s => encodeURIComponent(s.replace(/'/g, "''"))).join("/");
+      const url = this.base() + "/_api/web/GetFolderByServerRelativePath(decodedurl='" + ruta + "')/Folders?$select=Name";
+      const j = await (await this.pedir(url, { headers: { Accept: "application/json;odata=nometadata" } })).json();
+      return (Array.isArray(j.value) ? j.value : []).map(x => x && x.Name).filter(n => typeof n === "string");
+    } catch (_) { return []; }
+  }
   async metadatos(rel) {
     const j = await (await this.pedir(this.archivo(rel) + "?$select=Name,Length,TimeLastModified", { headers: { Accept: "application/json;odata=nometadata" } })).json();
     return { id: j.Name, nombre: j.Name, bytes: Number(j.Length) || 0, modificado: j.TimeLastModified };
@@ -155,6 +164,19 @@ export async function abrirCatalogo() {
   const u = leerUbicacion();
   if (!u) throw new ErrorGraph("sin-ubicacion", "No hay un catálogo configurado en este equipo.");
   return new FuenteSP(u.host, u.carpeta);
+}
+
+// Una carpeta hermana de la del enlace (dentro de la misma biblioteca y el mismo dominio), o null si el nombre no vale o no hay carpeta padre.
+export function fuenteHermana(f, nombre) {
+  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, nombre) : null;
+  return r && r.host === f.host ? new FuenteSP(r.host, r.carpeta, nombre) : null;
+}
+
+// Los nombres de las carpetas hermanas de la del enlace (las que hay junto a ella en su carpeta padre). Nunca lanza: [] si no se pudo leer.
+export async function listarHermanas(f) {
+  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, "x") : null;
+  if (!r || r.host !== f.host) return [];
+  return new FuenteSP(r.host, r.carpeta.slice(0, -2)).subcarpetas();
 }
 
 // El acceso de la persona, leído en línea con su propia cuenta (nunca de una copia). No lanza error nunca:
