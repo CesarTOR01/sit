@@ -36,7 +36,7 @@ igual(directiva(pMarco, "script-src"), ["'unsafe-inline'"], "marco.html: sólo l
 igual(/connect-src|frame-src|'self'|https?:/.test(pMarco), false, "marco.html: sin conexiones, sin sitio propio, sin direcciones");
 igual(/fetch\(|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB|eval\(|new Function|importScripts/.test(marco), false, "marco.html: no toca red ni almacenamiento");
 igual(/<script[^>]*\ssrc=|<link[^>]*href=|@import/.test(marco), false, "marco.html: no carga nada de afuera");
-igual(/if \(e\.source !== parent\) return/.test(marco) && /if \(parent === window\) return/.test(marco), true, "marco.html: sólo escucha a la página que lo contiene y solo no hace nada");
+igual(/if \(e\.source !== parent\) return/.test(marco) && /if \(parent === window \|\| self\.origin !== "null"\) return/.test(marco), true, "marco.html: sólo actúa con origen opaco (aislado) y escuchando a la página que lo contiene; solo o sin sandbox no hace nada");
 igual(/d\.sit === "tablero" && typeof d\.html === "string"/.test(marco) && /limpio\(d\.tema\)/.test(marco) && /t === "dark" \|\| t === "light" \? t : null/.test(marco), true, "marco.html: sólo reenvía el tablero (texto) y el tema light, dark o null");
 const marcoInterno = (/<iframe id="t"[^>]*>/.exec(marco) || [""])[0];
 igual(/sandbox="allow-scripts"/.test(marcoInterno) && !/allow-same-origin|allow-top-navigation|allow-popups|allow-forms/.test(marcoInterno), true, "marco.html: el tablero va en otro marco aislado, sin permisos de más");

@@ -13,7 +13,7 @@
 <iframe id="t" title="Tablero" sandbox="allow-scripts"></iframe>
 <script>
 (function () {
-  if (parent === window) return; // abierto solo no hace nada
+  if (parent === window || self.origin !== "null") return; // sólo actúa aislado, con origen opaco (sandbox sin allow-same-origin); abierto solo o sin sandbox no hace nada
   var f = document.getElementById("t"), tema = null;
   function limpio(t) { return t === "dark" || t === "light" ? t : null; }
   function darTema() { try { f.contentWindow.postMessage({ sit: "tema", tema: tema }, "*"); } catch (e) { /* el tablero aún no está listo */ } }
