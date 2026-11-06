@@ -47,9 +47,9 @@ igual(temaGuardado(), null, "un valor raro guardado se ignora");
 
 /* ---- cómo lo usan el sitio y el visor ---- */
 const ver = leer("../sitio/ver.js"), verHtml = leer("../sitio/ver.html"), app = leer("../sitio/app.js"), fuenteTema = leer("../sitio/tema.js");
-igual(/marco\.srcdoc = conTema\(html, temaActual\(\)\)/.test(ver), true, "ver.js: el tablero se muestra con el tema puesto en su etiqueta html");
-igual(/contentWindow\.postMessage\(mensajeTema\(temaActual\(\)\), "\*"\)/.test(ver), true, "ver.js: avisa al marco sólo con mensajeTema");
-igual(/marco\.addEventListener\("load", avisarTema\)/.test(ver) && /\$\("tema"\)\.addEventListener\("click", \(\) => \{ alternarTema\(\); avisarTema\(\); \}\)/.test(ver), true, "ver.js: avisa al cargar el marco y al cambiar el tema");
+igual(/pendiente = conTema\(html, temaActual\(\)\)/.test(ver), true, "ver.js: el tablero se manda con el tema puesto en su etiqueta html");
+igual(/const avisarTema = \(\) => aMarco\(mensajeTema\(temaActual\(\)\)\)/.test(ver) && /contentWindow\.postMessage\(msg, "\*"\)/.test(ver), true, "ver.js: avisa al marco sólo con mensajeTema");
+igual(/\$\("tema"\)\.addEventListener\("click", \(\) => \{ alternarTema\(\); avisarTema\(\); \}\)/.test(ver) && /marco\.addEventListener\("load", \(\) => \{ marcoListo = true; enviar\(\); \}\)/.test(ver), true, "ver.js: avisa el tema al cargar el marco y al cambiarlo");
 igual(/addEventListener\("message"/.test(ver), false, "ver.js: no escucha nada del marco");
 igual(/\beval\(|new Function|innerHTML|insertAdjacentHTML|document\.write/.test(ver + fuenteTema), false, "ver.js y tema.js: ni eval ni HTML crudo");
 const i = ver.indexOf("sha256(buf)"), j = ver.indexOf("mostrar(aTexto(buf))");

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://*.sharepoint.com; frame-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://*.sharepoint.com; frame-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>SIT · Sistema de Información Tornel</title>
 <link rel="icon" type="image/svg+xml" href="marca/tornel-isotipo.svg">
@@ -26,7 +26,8 @@
   </div>
 </header>
 <main class="ver-estado" id="estado" tabindex="-1" aria-live="polite"></main>
-<!-- El tablero embebido corre aislado: sin acceso al token ni al almacenamiento de esta página -->
+<!-- El tablero embebido corre aislado, dentro de marco.html (su propia política): sin acceso al token ni al almacenamiento de esta página.
+     ver.js le pone la dirección y le manda el tablero como mensaje. -->
 <iframe id="marco" title="Tablero" sandbox="allow-scripts" hidden></iframe>
 <script type="module" src="ver.js"></script>
 </body>

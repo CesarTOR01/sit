@@ -6,14 +6,14 @@ cada archivo cuando el catálogo lo trae.
 
 - `sitio/`: lo que publica GitHub Pages (HTML, CSS y JavaScript, sin librerías de terceros).
   - `index.html`, `app.js`: inicio de sesión, menú y tableros de datos (formato `visor/1`, ver el encabezado de `app.js`).
-  - `ver.html`, `ver.js`: tableros embebidos, en un marco aislado (`sandbox` sin `allow-same-origin`).
+  - `ver.html`, `ver.js`: tableros embebidos, en un marco aislado (`sandbox` sin `allow-same-origin`); `ver.html` no permite nada en línea. El tablero va dentro de `marco.html`, una página estática sin datos con su propia política (sin red) que lo recibe por mensaje; así lo en línea del tablero no obliga a relajar la política de la página donde está la sesión.
   - `auth.js`, `graph.js`, `config.js`: inicio de sesión con PKCE; el perfil se lee con Microsoft Graph y los archivos con la API REST de SharePoint.
 - `herramientas/sellar_portal.py`: pone el sha256 y el tamaño de cada tablero en el catálogo.
 - `herramientas/crear_marcador.py`: arma la dirección de SIT con la dirección de la carpeta del catálogo en el fragmento (`#c=...`).
 - `herramientas/crear_qr.py`: convierte esa dirección en un código QR (PNG) para entrar desde un celular o un iPad; necesita la librería `segno` (`python -m pip install segno`), toma la dirección sin mostrarla o del portapapeles y se niega a escribir la imagen dentro del repositorio (el QR lleva el enlace de la carpeta: se guarda fuera y se reparte por un canal interno).
 - `herramientas/crear_acceso.py`: arma `sit-acceso.json` (catálogo de acceso) a partir de una hoja local de correo y etiquetas, con `--carpetas "Etiqueta=carpeta1,carpeta2"` para las carpetas que lee cada etiqueta; el archivo lleva el hash del correo, no el correo.
   - `vistas.js`: menú, portada (con el mapa de gerencias de Administrador) y vista de tablero, compartidas por el sitio y la maqueta local; `catalogos.js`: unión de los catálogos de carpetas hermanas.
-- `pruebas/*.prueba.js`: pruebas con datos ficticios, sin navegador (`node pruebas/acceso.prueba.js`, `catalogos`, `vistas`, `iconos`, `emblemas`, `estilo`); `acceso` cubre el catálogo de acceso, las identidades y la lectura de carpetas hermanas con un servidor simulado; `tema` cubre el tema y su paso al tablero embebido. `pruebas/crear_qr.prueba.py` prueba el generador de QR (`py pruebas/crear_qr.prueba.py`).
+- `pruebas/*.prueba.js`: pruebas con datos ficticios, sin navegador (`node pruebas/acceso.prueba.js`, `catalogos`, `vistas`, `iconos`, `emblemas`, `estilo`); `acceso` cubre el catálogo de acceso, las identidades y la lectura de carpetas hermanas con un servidor simulado; `tema` cubre el tema y su paso al tablero embebido; `csp` cubre la política de contenido de `ver.html` y del relevo `marco.html`. `pruebas/crear_qr.prueba.py` prueba el generador de QR (`py pruebas/crear_qr.prueba.py`).
 - `.github/workflows/pages.yml`: publica `sitio/` en Pages al subir a `main`.
 
 No lleva secretos: el inicio de sesión usa el flujo de código con PKCE de una aplicación de página única.
