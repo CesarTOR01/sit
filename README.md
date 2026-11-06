@@ -10,9 +10,10 @@ cada archivo cuando el catálogo lo trae.
   - `auth.js`, `graph.js`, `config.js`: inicio de sesión con PKCE; el perfil se lee con Microsoft Graph y los archivos con la API REST de SharePoint.
 - `herramientas/sellar_portal.py`: pone el sha256 y el tamaño de cada tablero en el catálogo.
 - `herramientas/crear_marcador.py`: arma la dirección de SIT con la dirección de la carpeta del catálogo en el fragmento (`#c=...`).
+- `herramientas/crear_qr.py`: convierte esa dirección en un código QR (PNG) para entrar desde un celular o un iPad; necesita la librería `segno` (`python -m pip install segno`), toma la dirección sin mostrarla o del portapapeles y se niega a escribir la imagen dentro del repositorio (el QR lleva el enlace de la carpeta: se guarda fuera y se reparte por un canal interno).
 - `herramientas/crear_acceso.py`: arma `sit-acceso.json` (catálogo de acceso) a partir de una hoja local de correo y etiquetas, con `--carpetas "Etiqueta=carpeta1,carpeta2"` para las carpetas que lee cada etiqueta; el archivo lleva el hash del correo, no el correo.
   - `vistas.js`: menú, portada (con el mapa de gerencias de Administrador) y vista de tablero, compartidas por el sitio y la maqueta local; `catalogos.js`: unión de los catálogos de carpetas hermanas.
-- `pruebas/*.prueba.js`: pruebas con datos ficticios, sin navegador (`node pruebas/acceso.prueba.js`, `catalogos`, `vistas`, `iconos`, `emblemas`, `estilo`); `acceso` cubre el catálogo de acceso, las identidades y la lectura de carpetas hermanas con un servidor simulado.
+- `pruebas/*.prueba.js`: pruebas con datos ficticios, sin navegador (`node pruebas/acceso.prueba.js`, `catalogos`, `vistas`, `iconos`, `emblemas`, `estilo`); `acceso` cubre el catálogo de acceso, las identidades y la lectura de carpetas hermanas con un servidor simulado; `tema` cubre el tema y su paso al tablero embebido. `pruebas/crear_qr.prueba.py` prueba el generador de QR (`py pruebas/crear_qr.prueba.py`).
 - `.github/workflows/pages.yml`: publica `sitio/` en Pages al subir a `main`.
 
 No lleva secretos: el inicio de sesión usa el flujo de código con PKCE de una aplicación de página única.
