@@ -55,6 +55,7 @@ a { color: var(--accion); }
 .banda .espacio { flex: 1; }
 .pastilla { border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .12); color: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .pastilla:hover { background: rgba(255, 255, 255, .22); }
+a.pastilla { display: inline-block; text-decoration: none; }
 .menu-btn { display: none; }
 
 /* estructura */

@@ -34,6 +34,7 @@ let enlaceInvalido = false;
 
 const $ = id => document.getElementById(id);
 const VIGENCIA_H = 36;
+const TITULO_PORTADA = document.title;
 let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "", gerencia = GENERAL;
 // etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
 // accesoRoto: el catálogo de acceso existe pero no se pudo usar y se muestra sólo lo general
@@ -93,9 +94,11 @@ const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t
 
 /* ---------- pantallas ---------- */
 const actualizarOlvidar = () => { $("olvidar").hidden = !(leerUbicacion() || haySesion() || hayPendiente()); };
+// El botón Inicio lleva a la portada (#/); sólo se ofrece con un tablero abierto, porque en la portada no tendría adónde ir
+const marcarInicio = () => { $("inicio").hidden = !(portal && actualId); };
 
 function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false, info = null } = {}) {
-  $("marco").hidden = true; $("conectar").hidden = false;
+  $("marco").hidden = true; $("conectar").hidden = false; $("inicio").hidden = true;
   $("refrescar").hidden = $("cambiar").hidden = true;
   actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = "Sistema de Información Tornel";
@@ -155,8 +158,9 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   }
   const t = visibles(portal.tableros).find(x => x.id === id);
   actualId = t ? t.id : null;
+  marcarInicio();
   if (!silencioso || !t) { pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false"); }
-  if (!t) { c.replaceChildren(portadaPortal()); return; }
+  if (!t) { document.title = TITULO_PORTADA; c.replaceChildren(portadaPortal()); return; }
   if (t.tipo === "embebido") { location.replace(hrefDe(t)); return; }
   if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
   try {
@@ -165,7 +169,7 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
     const edad = hace(datos.generado), alas = fechaHora(datos.generado);
     c.replaceChildren(
       h("h2", { class: "titulo-tab" }, datos.titulo || t.titulo),
-      datos.subtitulo ? h("p", { class: "sub-tab" }, datos.subtitulo) : null,
+      ...(datos.subtitulo ? [h("p", { class: "sub-tab" }, datos.subtitulo)] : []),
       h("div", { class: "fila-chips" },
         h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok"), title: "Hora de la última publicación de este tablero" }, alas ? "Datos al " + alas + " (" + edad.txt + ")" : "Datos de fecha desconocida"),
         h("span", { class: "chip " + (sello === "ok" ? "ok" : "warn"), title: sello === "ok" ? "El archivo cuadra con el sha256 del catálogo" : "El catálogo no trae sha256 para este archivo" }, sello === "ok" ? "Sello verificado" : "Sin sello"),
@@ -230,7 +234,7 @@ function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeU
 
 // El catálogo ya no está donde se guardó: menú vacío y un aviso neutro, nada más (ni dónde estaba ni por qué).
 function mostrarCatalogoVacio() {
-  portal = null; actualId = null;
+  portal = null; actualId = null; marcarInicio();
   $("conectar").hidden = true; $("marco").hidden = false;
   $("refrescar").hidden = true; $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = usuario ? "Sesión de " + usuario : "Sesión iniciada";
