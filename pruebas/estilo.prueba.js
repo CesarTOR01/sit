@@ -20,14 +20,15 @@ igual(reglas.length > 0, true, "hay regla para #marco");
 igual(reglas.every(r => /iframe#marco/.test(r)), true, "toda regla de #marco apunta sólo al iframe");
 igual(reglas.filter(r => /background:\s*#fff/.test(r)).every(r => /iframe#marco/.test(r)), true, "el fondo blanco no alcanza al contenedor");
 
-/* el botón Inicio: enlace a la portada (#/), oculto de inicio y sólo visible con un tablero abierto */
+/* Inicio vive en el menú lateral: primer elemento, enlace a la portada (#/), activo sólo en la portada; el encabezado ya no lo lleva */
 const app = leer("../sitio/app.js");
-igual(/<a[^>]*id="inicio"[^>]*href="#\/"[^>]*hidden[^>]*>Inicio<\/a>/.test(index) || /<a[^>]*href="#\/"[^>]*id="inicio"[^>]*hidden[^>]*>Inicio<\/a>/.test(index), true, "index.html: enlace Inicio a #/ y oculto de inicio");
+igual(/id="inicio"/.test(index), false, "index.html: el encabezado ya no trae el botón Inicio");
 igual(/<a[^>]*href="index\.html"[^>]*id="volver"[^>]*>← Inicio<\/a>/.test(ver), true, "ver.html: el botón ← Inicio vuelve a index.html");
-igual(/marcarInicio = \(\) => \{ \$\("inicio"\)\.hidden = !\(portal && actualId\); \}/.test(app), true, "app.js: Inicio sólo con portal y tablero abierto");
-igual((app.match(/marcarInicio\(\)/g) || []).length >= 2, true, "app.js: se actualiza al abrir tablero y con el catálogo vacío");
-igual(/function mostrarConexion[\s\S]{0,200}\$\("inicio"\)\.hidden = true/.test(app), true, "app.js: la pantalla de conexión oculta Inicio");
-igual(/a\.pastilla \{[^}]*text-decoration: none/.test(css), true, "estilo.css: el enlace Inicio se ve como los botones");
+igual(/h\("a", \{ href: "#\/", class: "inicio", "aria-current": actualId \? null : "page" \}, iconoClave\("casa"\)/.test(app), true, "app.js: Inicio apunta a #/ y es activo sólo sin tablero abierto");
+igual(/replaceChildren\(inicio, q, lista\)/.test(app), true, "app.js: Inicio va primero en el menú, antes de la búsqueda y de los grupos");
+igual(/marcarInicio/.test(app), false, "app.js: ya no queda la lógica del botón del encabezado");
+igual(/a\.pastilla \{[^}]*text-decoration: none/.test(css), true, "estilo.css: el enlace de regreso de ver.html se ve como botón");
+igual(/nav\.lateral a\.inicio \{/.test(css), true, "estilo.css: Inicio se separa de los grupos");
 
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "estilo: " + ok + " de " + ok + " pruebas bien");
 process.exit(mal ? 1 : 0);

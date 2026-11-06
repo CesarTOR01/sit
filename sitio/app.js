@@ -20,7 +20,7 @@ import { h } from "./comun.js";
 import { landing } from "./landing.js";
 import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, heroGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
-import { icono } from "./iconos.js";
+import { icono, iconoClave } from "./iconos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -94,11 +94,8 @@ const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t
 
 /* ---------- pantallas ---------- */
 const actualizarOlvidar = () => { $("olvidar").hidden = !(leerUbicacion() || haySesion() || hayPendiente()); };
-// El botón Inicio lleva a la portada (#/); sólo se ofrece con un tablero abierto, porque en la portada no tendría adónde ir
-const marcarInicio = () => { $("inicio").hidden = !(portal && actualId); };
-
 function mostrarConexion({ aviso = null, pendiente = null, ofrecerBasico = false, info = null } = {}) {
-  $("marco").hidden = true; $("conectar").hidden = false; $("inicio").hidden = true;
+  $("marco").hidden = true; $("conectar").hidden = false;
   $("refrescar").hidden = $("cambiar").hidden = true;
   actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = "Sistema de Información Tornel";
@@ -137,7 +134,9 @@ function pintarMenu() {
     if (!por.size) lista.replaceChildren(h("p", { class: "sub-tab relleno" }, "Sin coincidencias."));
   };
   q.addEventListener("input", grupos);
-  $("lateral").replaceChildren(q, lista);
+  // Inicio lleva a la portada (#/); va siempre primero, no lo filtra la búsqueda y se marca activo en la portada
+  const inicio = h("a", { href: "#/", class: "inicio", "aria-current": actualId ? null : "page" }, iconoClave("casa"), h("span", {}, "Inicio"));
+  $("lateral").replaceChildren(inicio, q, lista);
   grupos();
 }
 
@@ -158,7 +157,6 @@ async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   }
   const t = visibles(portal.tableros).find(x => x.id === id);
   actualId = t ? t.id : null;
-  marcarInicio();
   if (!silencioso || !t) { pintarMenu(); $("lateral").classList.remove("abierto"); $("menu-btn").setAttribute("aria-expanded", "false"); }
   if (!t) { document.title = TITULO_PORTADA; c.replaceChildren(portadaPortal()); return; }
   if (t.tipo === "embebido") { location.replace(hrefDe(t)); return; }
@@ -234,7 +232,7 @@ function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeU
 
 // El catálogo ya no está donde se guardó: menú vacío y un aviso neutro, nada más (ni dónde estaba ni por qué).
 function mostrarCatalogoVacio() {
-  portal = null; actualId = null; marcarInicio();
+  portal = null; actualId = null;
   $("conectar").hidden = true; $("marco").hidden = false;
   $("refrescar").hidden = true; $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = usuario ? "Sesión de " + usuario : "Sesión iniciada";

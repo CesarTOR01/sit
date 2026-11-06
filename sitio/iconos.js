@@ -11,6 +11,7 @@ export const TRAZOS = {
   calidad: ["M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", "M8.5 12l2.5 2.5L16 9"],
   banco: ["M3 10l9-6 9 6", "M5 10v8", "M10 10v8", "M14 10v8", "M19 10v8", "M3 21h18"],
   doc: ["M7 3h8l4 4v14H7z", "M15 3v4h4", "M10 12h6", "M10 16h6"],
+  casa: ["M3 11l9-8 9 8", "M5 10v11h14V10", "M10 21v-6h4v6"],
 };
 
 export function claveIcono(t) {
@@ -26,5 +27,8 @@ export function claveIcono(t) {
   return "panel";
 }
 
-// El ícono del tablero, como elemento (decorativo: el título del tablero va al lado).
-export const icono = t => h("span", { class: "ico", "aria-hidden": "true" }, s("svg", { viewBox: "0 0 24 24" }, ...TRAZOS[claveIcono(t)].map(d => s("path", { d }))));
+// Un ícono por su nombre, como elemento (decorativo: el texto del elemento va al lado).
+export const iconoClave = clave => h("span", { class: "ico", "aria-hidden": "true" }, s("svg", { viewBox: "0 0 24 24" }, ...TRAZOS[clave].map(d => s("path", { d }))));
+
+// El ícono del tablero.
+export const icono = t => iconoClave(claveIcono(t));

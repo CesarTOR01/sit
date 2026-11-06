@@ -27,9 +27,9 @@ igual(claveIcono({ id: 5 }), "panel", "id que no es texto");
 
 /* ---- los trazos ---- */
 const claves = Object.keys(TRAZOS);
-igual(claves.length, 8, "ocho íconos");
+igual(claves.length, 9, "nueve íconos");
 igual(claves.every(k => Array.isArray(TRAZOS[k]) && TRAZOS[k].length > 0 && TRAZOS[k].every(d => /^M[0-9a-zA-Z .,\-]+$/.test(d))), true, "cada trazo es una ruta simple");
-igual(["panel", "tendencia", "pastel", "recibo", "planta", "calidad", "banco", "doc"].every(k => claves.includes(k)), true, "están los ocho nombres");
+igual(["panel", "tendencia", "pastel", "recibo", "planta", "calidad", "banco", "doc", "casa"].every(k => claves.includes(k)), true, "están los nueve nombres");
 igual(["factur", "x", "venta", "prod", "costo", "calidad", "aviso", ""].every(id => claves.includes(claveIcono({ id }))), true, "toda clave elegida existe");
 
 /* ---- lo que se añade al sitio no lleva efectos que el manual prohíbe ---- */
