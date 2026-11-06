@@ -12,7 +12,15 @@ export const TRAZOS = {
   banco: ["M3 10l9-6 9 6", "M5 10v8", "M10 10v8", "M14 10v8", "M19 10v8", "M3 21h18"],
   doc: ["M7 3h8l4 4v14H7z", "M15 3v4h4", "M10 12h6", "M10 16h6"],
   casa: ["M3 11l9-8 9 8", "M5 10v11h14V10", "M10 21v-6h4v6"],
+  regulatorios: ["M7 3h8l4 4v14H7z", "M15 3v4h4", "M9.5 14.5l2 2 3.5-4"],
+  personas: ["M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6", "M16 5.2a3 3 0 0 1 0 5.6", "M17 14.3c2.3.6 4 2.8 4 5.7"],
+  chip: ["M7 7h10v10H7z", "M10 3v4", "M14 3v4", "M10 17v4", "M14 17v4", "M3 10h4", "M3 14h4", "M17 10h4", "M17 14h4"],
+  ajustes: ["M4 7h9", "M17 7h3", "M13 5v4h4V5z", "M4 17h3", "M11 17h9", "M7 15v4h4v-4z"],
 };
+
+// El ícono de cada gerencia en el menú (por el id de la gerencia); sin coincidencia, el del panel.
+const ICONO_GERENCIA = { comercial: "tendencia", operaciones: "planta", regulatorios: "regulatorios", control: "ajustes", calidad: "calidad", finanzas: "banco", rrhh: "personas", sistemas: "chip", direccion: "panel" };
+export const claveGerencia = id => Object.prototype.hasOwnProperty.call(ICONO_GERENCIA, id) ? ICONO_GERENCIA[id] : "panel";
 
 export function claveIcono(t) {
   const id = String((t && t.id) || "").toLowerCase();

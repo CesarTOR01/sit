@@ -38,6 +38,17 @@ igual(/mapaGerencias\(tableros, hrefDe, emblemas\)/.test(vsrc) && /emblemas = \{
 igual(/emblemas, accesoRoto \}\)/.test(app), true, "app.js: pasa los emblemas leídos a la portada");
 igual(/leerEmblemasDe\(f, idsDeGerencias\(\)\)/.test(app) && /if \(admin\)/.test(app), true, "app.js: sólo Administrador lee los emblemas de todas");
 
+/* ---- menú lateral compacto: un renglón por gerencia ---- */
+const menu = vsrc.slice(vsrc.indexOf("export function menuLateral"), vsrc.indexOf("// Portada de Administrador"));
+igual(/repartoPorGerencia\(tableros\.filter\(coincide\)\)\.filter\(x => x\.tableros\.length\)/.test(menu), true, "menú: reparto por gerencia, sin gerencias vacías");
+igual(/h\("details", \{ class: "gm"/.test(menu) && /h\("summary"/.test(menu), true, "menú: cada gerencia es un details con su summary");
+igual(/claveGerencia\(x\.gerencia\.id\)/.test(menu), true, "menú: el renglón lleva el ícono de la gerencia");
+igual(/x\.tableros\.some\(t => t\.id === actualId\)/.test(menu) && /reparto\.length === 1/.test(menu) && /f !== ""/.test(menu), true, "menú: abierta la del tablero activo, la única que haya, o todas al buscar");
+igual(/if \(d\.open\) for \(const o of detalles\) if \(o !== d && o\.open\) o\.open = false/.test(menu) && /if \(!f\) d\.addEventListener\("toggle"/.test(menu), true, "menú: una gerencia abierta a la vez, salvo al buscar");
+igual(/"aria-current": t\.id === actualId \? "page" : null/.test(menu), true, "menú: el tablero activo se marca");
+igual(/return \[inicio, q, lista\]/.test(menu) && /Sin coincidencias/.test(menu), true, "menú: Inicio, búsqueda, lista y aviso sin coincidencias");
+igual(/localStorage|sessionStorage|innerHTML/.test(menu), false, "menú: no guarda qué estaba abierto ni usa HTML crudo");
+
 /* ---- lo que no debe entrar a vistas.js: sesión, red, almacenamiento ---- */
 const vistas = leer("../sitio/vistas.js");
 igual(/fetch\(|localStorage|sessionStorage|innerHTML|insertAdjacentHTML|document\.write/.test(vistas), false, "vistas.js no toca red, almacenamiento ni HTML crudo");

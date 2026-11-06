@@ -1,6 +1,6 @@
 // Pruebas de los íconos del menú, sin navegador: node pruebas/iconos.prueba.js
 import { readFileSync } from "node:fs";
-import { TRAZOS, claveIcono } from "../sitio/iconos.js";
+import { TRAZOS, claveIcono, claveGerencia } from "../sitio/iconos.js";
 
 let ok = 0, mal = 0;
 const igual = (a, b, nombre) => {
@@ -27,10 +27,19 @@ igual(claveIcono({ id: 5 }), "panel", "id que no es texto");
 
 /* ---- los trazos ---- */
 const claves = Object.keys(TRAZOS);
-igual(claves.length, 9, "nueve íconos");
+igual(claves.length, 13, "trece íconos");
 igual(claves.every(k => Array.isArray(TRAZOS[k]) && TRAZOS[k].length > 0 && TRAZOS[k].every(d => /^M[0-9a-zA-Z .,\-]+$/.test(d))), true, "cada trazo es una ruta simple");
-igual(["panel", "tendencia", "pastel", "recibo", "planta", "calidad", "banco", "doc", "casa"].every(k => claves.includes(k)), true, "están los nueve nombres");
+igual(["panel", "tendencia", "pastel", "recibo", "planta", "calidad", "banco", "doc", "casa"].every(k => claves.includes(k)), true, "están los nueve nombres de siempre");
 igual(["factur", "x", "venta", "prod", "costo", "calidad", "aviso", ""].every(id => claves.includes(claveIcono({ id }))), true, "toda clave elegida existe");
+igual(["regulatorios", "personas", "chip", "ajustes"].every(k => claves.includes(k)), true, "están los íconos de gerencia");
+
+/* ---- el ícono de cada gerencia del menú ---- */
+const GER = ["comercial", "operaciones", "regulatorios", "control", "calidad", "finanzas", "rrhh", "sistemas", "direccion"];
+igual(GER.every(id => claves.includes(claveGerencia(id))), true, "toda gerencia tiene un ícono que existe");
+igual(new Set(GER.filter(id => id !== "direccion").map(claveGerencia)).size, 8, "las ocho gerencias con ícono propio no repiten");
+igual(claveGerencia("general"), "panel", "General usa el panel");
+igual(claveGerencia("toString"), "panel", "un nombre heredado no es una gerencia");
+igual(claveGerencia(undefined), "panel", "sin gerencia: panel");
 
 /* ---- lo que se añade al sitio no lleva efectos que el manual prohíbe ---- */
 const css = readFileSync(new URL("../sitio/estilo.css", import.meta.url), "utf8");

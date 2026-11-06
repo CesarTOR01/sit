@@ -358,3 +358,20 @@ td:first-child { font-weight: 700; }
 .mapa-emblema { flex: none; width: 112px; height: 56px; }
 .mapa-emblema .emblema { width: 100%; height: 100%; max-height: none; object-fit: contain; object-position: right center; }
 @media (max-width: 440px) { .mapa-cab { flex-direction: column; } .mapa-emblema .emblema { object-position: left center; } }
+/* menú lateral compacto: un renglón por gerencia que se abre, con sus tableros debajo (una abierta a la vez) */
+nav.lateral .grupos { display: grid; gap: 2px; margin-top: 6px; }
+nav.lateral details.gm { border-radius: 10px; }
+nav.lateral details.gm[open] { background: var(--fondo); }
+nav.lateral details.gm > summary { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 10px; cursor: pointer; list-style: none; font-weight: 700; color: var(--tinta); }
+nav.lateral details.gm > summary::-webkit-details-marker { display: none; }
+nav.lateral details.gm > summary:hover { background: var(--fondo); }
+nav.lateral details.gm > summary:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+nav.lateral details.gm > summary .ico { color: var(--acento); }
+nav.lateral details.gm > summary::after { content: ""; flex: none; width: 7px; height: 7px; margin: 0 3px 3px 2px; border-right: 2px solid var(--tinta2); border-bottom: 2px solid var(--tinta2); transform: rotate(45deg); }
+nav.lateral details.gm[open] > summary::after { margin: 3px 3px 0 2px; transform: rotate(-135deg); }
+nav.lateral .gm-nombre { min-width: 0; overflow-wrap: anywhere; }
+nav.lateral .gm-cuenta { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--tinta2); }
+nav.lateral .gm-items { display: grid; gap: 1px; margin: 0 0 6px 19px; padding: 2px 0 2px 8px; border-left: 2px solid var(--linea); }
+nav.lateral .gm-items a { display: block; padding: 5px 10px; border-left: 0; border-radius: 8px; font-size: 13px; line-height: 1.3; font-weight: 400; color: var(--tinta2); overflow-wrap: anywhere; }
+nav.lateral .gm-items a:hover { background: var(--tarjeta); color: var(--tinta); }
+nav.lateral .gm-items a[aria-current="page"] { border-left: 0; background: color-mix(in srgb, var(--acento) 14%, var(--tarjeta)); color: var(--tinta); font-weight: 700; }

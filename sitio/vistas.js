@@ -1,7 +1,7 @@
 // Piezas de pantalla que no dependen de la sesión ni de SharePoint: reciben sus datos y devuelven elementos.
 // El sitio (app.js) y la maqueta local usan estas mismas funciones, así lo que se ve en una se ve en la otra.
 import { h } from "./comun.js";
-import { icono, iconoClave } from "./iconos.js";
+import { iconoClave, claveGerencia } from "./iconos.js";
 import { heroGerencia, emblemaImg, repartoPorGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
 
@@ -23,19 +23,28 @@ export function fechaHora(iso) {
   return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
-// Menú lateral: Inicio primero (siempre visible, activo en la portada), la búsqueda y los tableros por grupo.
+// Menú lateral: Inicio primero (siempre visible, activo en la portada), la búsqueda y un renglón por gerencia que se abre con sus tableros.
+// Cada tablero va a una sola gerencia (el mismo reparto del mapa de Administrador); las gerencias sin tableros no salen.
+// Una gerencia abierta a la vez: la del tablero que se está viendo (o la única que haya); al buscar se abren todas las que coinciden.
 // `tableros` ya viene filtrado y ordenado para la persona; `hrefDe(t)` da el enlace de cada tablero.
 export function menuLateral({ tableros, actualId, hrefDe, hrefInicio = "#/" }) {
   const q = h("input", { type: "search", placeholder: "Buscar tablero…", "aria-label": "Buscar tablero" });
-  const lista = h("div");
+  const lista = h("div", { class: "grupos" });
   const grupos = () => {
-    const f = q.value.trim().toLowerCase(), por = new Map();
-    for (const t of tableros) {
-      if (f && !(t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f)) continue;
-      const g = t.grupo || "Tableros"; if (!por.has(g)) por.set(g, []); por.get(g).push(t);
-    }
-    lista.replaceChildren(...[...por].flatMap(([g, ts]) => [h("h2", {}, g), ...ts.map(t => h("a", { href: hrefDe(t), "aria-current": t.id === actualId ? "page" : null, title: t.descripcion || null }, icono(t), h("span", {}, t.titulo)))]));
-    if (!por.size) lista.replaceChildren(h("p", { class: "sub-tab relleno" }, "Sin coincidencias."));
+    const f = q.value.trim().toLowerCase();
+    const coincide = t => !f || (t.titulo + " " + (t.grupo || "") + " " + (t.descripcion || "")).toLowerCase().includes(f);
+    const reparto = repartoPorGerencia(tableros.filter(coincide)).filter(x => x.tableros.length);
+    if (!reparto.length) { lista.replaceChildren(h("p", { class: "sub-tab relleno" }, "Sin coincidencias.")); return; }
+    const abierto = x => f !== "" || reparto.length === 1 || x.tableros.some(t => t.id === actualId);
+    const detalles = reparto.map(x => {
+      const d = h("details", { class: "gm", "data-gerencia": x.gerencia.id },
+        h("summary", {}, iconoClave(claveGerencia(x.gerencia.id)), h("span", { class: "gm-nombre" }, x.gerencia === GENERAL ? "General" : x.gerencia.nombre), h("span", { class: "gm-cuenta" }, String(x.tableros.length))),
+        h("div", { class: "gm-items" }, x.tableros.map(t => h("a", { href: hrefDe(t), "aria-current": t.id === actualId ? "page" : null, title: t.descripcion || null }, h("span", {}, t.titulo)))));
+      d.open = abierto(x);
+      if (!f) d.addEventListener("toggle", () => { if (d.open) for (const o of detalles) if (o !== d && o.open) o.open = false; });
+      return d;
+    });
+    lista.replaceChildren(...detalles);
   };
   q.addEventListener("input", grupos);
   const inicio = h("a", { href: hrefInicio, class: "inicio", "aria-current": actualId ? null : "page" }, iconoClave("casa"), h("span", {}, "Inicio"));

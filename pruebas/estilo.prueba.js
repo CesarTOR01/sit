@@ -32,5 +32,13 @@ igual(/marcarInicio/.test(app), false, "app.js: ya no queda la lógica del botó
 igual(/a\.pastilla \{[^}]*text-decoration: none/.test(css), true, "estilo.css: el enlace de regreso de ver.html se ve como botón");
 igual(/nav\.lateral a\.inicio \{/.test(css), true, "estilo.css: Inicio se separa de los grupos");
 
+/* menú compacto: reglas del renglón de gerencia, de sus tableros, de la flecha y del foco; sin efectos que el manual prohíbe */
+const menuCss = css.slice(css.indexOf("/* menú lateral compacto"));
+igual(menuCss.length > 400, true, "estilo.css: está el bloque del menú compacto");
+igual(/nav\.lateral details\.gm > summary \{[^}]*min-height: 40px/.test(menuCss), true, "estilo.css: el renglón de gerencia mide al menos 40 px (toque en teléfono)");
+igual(/nav\.lateral details\.gm > summary:focus-visible \{/.test(menuCss), true, "estilo.css: el renglón se ve con el teclado");
+igual(/nav\.lateral \.gm-items a\[aria-current="page"\] \{/.test(menuCss) && /nav\.lateral \.gm-items \{[^}]*border-left/.test(menuCss), true, "estilo.css: línea guía y tablero activo");
+igual(/gradient\(|box-shadow|text-shadow|backdrop|blur\(|@keyframes|animation:|transition:/i.test(menuCss), false, "estilo.css: el menú compacto no lleva degradados, sombras, desenfoques ni animaciones");
+
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "estilo: " + ok + " de " + ok + " pruebas bien");
 process.exit(mal ? 1 : 0);
