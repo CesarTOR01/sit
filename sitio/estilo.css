@@ -352,3 +352,9 @@ td:first-child { font-weight: 700; }
 .mapa-gerencia li { margin: 2px 0; }
 .mapa-gerencia li a { display: block; padding: 6px 8px; border-radius: 8px; color: var(--tinta); text-decoration: none; overflow-wrap: anywhere; }
 .mapa-gerencia li a:hover { background: var(--fondo); }
+/* el logo de cada gerencia en su tarjeta (se lee de la carpeta marca con la cuenta de la persona) */
+.mapa-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mapa-titulo { min-width: 0; }
+.mapa-emblema { flex: none; width: 112px; height: 56px; }
+.mapa-emblema .emblema { width: 100%; height: 100%; max-height: none; object-fit: contain; object-position: right center; }
+@media (max-width: 440px) { .mapa-cab { flex-direction: column; } .mapa-emblema .emblema { object-position: left center; } }

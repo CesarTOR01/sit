@@ -18,14 +18,14 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, visiblesParaGerencia, esAdministrador, GENERAL } from "./gerencias.js";
+import { gerenciaDe, visiblesParaGerencia, esAdministrador, idsDeGerencias, GENERAL } from "./gerencias.js";
 import { menuLateral, portadaView, tableroView } from "./vistas.js";
 import { carpetasALeer, unirCatalogos, nombreDeCarpeta } from "./catalogos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -44,6 +44,8 @@ const hermanas = new Map();
 const fuenteDe = t => (t && t.origen && hermanas.get(t.origen)) || fuente;
 // emblema oficial de su gerencia, leído de la carpeta `marca` con su cuenta (null = se muestra la ilustración de respaldo)
 let emblema = null;
+// los emblemas de todas las gerencias (sólo Administrador los lee, para el mapa de gerencias): { id: {claro, oscuro} | null }
+let emblemas = {};
 
 /* ---------- tema ---------- */
 function tema(t) {
@@ -177,7 +179,7 @@ async function revisarTablero() {
 }
 vigilancia = vigilar(revisarTablero, () => refrescoMin(tableroAbierto(), CONFIG.releerCadaMin));
 
-const portadaPortal = () => portadaView({ portal, tableros: visibles(portal.tableros), hrefDe, graph: !!(fuente && fuente.tipo === "graph"), gerencia, usuario, emblema, accesoRoto });
+const portadaPortal = () => portadaView({ portal, tableros: visibles(portal.tableros), hrefDe, graph: !!(fuente && fuente.tipo === "graph"), gerencia, usuario, emblema, emblemas, accesoRoto });
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 
@@ -306,20 +308,30 @@ async function conectarSesion() {
   const idn = await identidad(fuente, p);
   gerencia = idn.gerencia; etiquetas = idn.etiquetas; accesoRoto = idn.accesoRoto;
   if (idn.entrada) extras = { admin: esAdministrador(etiquetas), carpetas: idn.carpetas };
-  emblema = gerencia === GENERAL ? null : await leerEmblemas(fuente, gerencia.id);
+  const admin = idn.entrada && esAdministrador(etiquetas);
+  emblema = gerencia === GENERAL || admin ? null : await leerEmblemas(fuente, gerencia.id);
   await conectar(fuente, CONFIG.catalogo);
+  // Administrador: los emblemas de todas las gerencias se leen aparte, sin retrasar la portada, y si sigue en ella se vuelve a pintar con los logos
+  if (admin) {
+    const f = fuente;
+    leerEmblemasDe(f, idsDeGerencias()).then(m => {
+      if (fuente !== f) return;
+      emblemas = m;
+      if (portal && !actualId && !$("marco").hidden) $("contenido").replaceChildren(portadaPortal());
+    }).catch(() => { /* sin emblemas el mapa queda sin logos */ });
+  }
 }
 
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; extras = null; hermanas.clear();
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; extras = null; hermanas.clear();
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });

@@ -71,12 +71,19 @@ export function visiblesParaGerencia(tableros, g, etiquetas = null) {
 }
 export const todasLasGerencias = () => [...GERENCIAS, ADMIN, GENERAL];
 
+// Los ids de las gerencias (sin Administrador ni General), por ejemplo para leer el emblema de cada una.
+export const idsDeGerencias = () => GERENCIAS.map(g => g.id);
+
 // Reparto para la portada de Administrador: cada tablero va a UNA gerencia según su grupo (o a General si su grupo no es de ninguna).
-// Las once gerencias salen siempre, con sus tableros o vacías; General sólo si le tocó algo. Devuelve [{ gerencia, tableros }].
+// Planeación pertenece a Operaciones: no tiene tarjeta propia y sus tableros salen en la de Operaciones. Las demás gerencias salen siempre,
+// con sus tableros o vacías; General sólo si le tocó algo. Devuelve [{ gerencia, tableros, lema }].
 export function repartoPorGerencia(tableros) {
-  const por = new Map([...GERENCIAS, GENERAL].map(g => [g.id, []]));
-  for (const t of tableros || []) if (t && typeof t === "object") por.get(gerenciaDe(t.grupo).id).push(t);
-  return [...GERENCIAS, GENERAL].map(g => ({ gerencia: g, tableros: por.get(g.id) })).filter(x => x.gerencia !== GENERAL || x.tableros.length);
+  const en = g => g.id === "planeacion" ? GERENCIAS.find(x => x.id === "operaciones") : g;
+  const lista = [...GERENCIAS.filter(g => g.id !== "planeacion"), GENERAL];
+  const por = new Map(lista.map(g => [g.id, []]));
+  for (const t of tableros || []) if (t && typeof t === "object") por.get(en(gerenciaDe(t.grupo)).id).push(t);
+  return lista.map(g => ({ gerencia: g, tableros: por.get(g.id), lema: g.id === "operaciones" ? "Producción, planta y planeación" : g === GENERAL ? "Tableros sin gerencia" : g.lema }))
+    .filter(x => x.gerencia !== GENERAL || x.tableros.length);
 }
 
 /* ---- ilustraciones (viewBox 0 0 320 180) ---- */
@@ -140,7 +147,7 @@ export function ilustracion(id) {
 
 // El emblema oficial de la gerencia ({claro, oscuro} como direcciones data:, ver emblemas.js): positivo en tema claro y negativo en oscuro;
 // sin negativo, el positivo va en un recuadro claro. Sólo se fija el ancho máximo; nunca se estira.
-const emblemaImg = (e, g) => h("div", { class: "hero-emblema" },
+export const emblemaImg = (e, g, clase = "hero-emblema") => h("div", { class: clase },
   h("img", { class: "emblema marca-claro", src: e.claro, alt: "Emblema de " + g.nombre }),
   h("img", { class: "emblema marca-oscuro" + (e.oscuro ? "" : " en-chip"), src: e.oscuro || e.claro, alt: "" }));
 

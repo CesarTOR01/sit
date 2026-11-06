@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES, MAX_CARPETAS } from "../sitio/acceso.js";
-import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esAdministrador, repartoPorGerencia, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
+import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esAdministrador, repartoPorGerencia, idsDeGerencias, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
 
 let ok = 0, mal = 0;
 const igual = (a, b, nombre) => {
@@ -127,19 +127,24 @@ igual(conCarpetas({ toString: ["x"], constructor: ["y"] }), { estado: "entrada",
 igual(conCarpetas({ " Dirección": ["x"] }), { estado: "entrada", etiquetas: ["Dirección"] }, "la etiqueta se compara exacta");
 
 /* ---- reparto para la portada de Administrador ---- */
-const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial" }, { id: "l", grupo: "Ventas Nacional" }, { id: "m", grupo: "Marketing" }, { id: "n", grupo: "Producción planta" }, null, undefined]);
+const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial" }, { id: "l", grupo: "Ventas Nacional" }, { id: "m", grupo: "Marketing" }, { id: "n", grupo: "Producción planta" }, { id: "o", grupo: "Planeación" }, { id: "q", grupo: "Planeación y demanda" }, null, undefined]);
 const todos = REP.flatMap(x => x.tableros.map(t => t.id));
-igual(todos.length, T.length + 4, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
+igual(todos.length, T.length + 6, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
 igual(new Set(todos).size, todos.length, "reparto: ningún tablero repetido");
-igual(REP.filter(x => x.gerencia !== GENERAL).length, 11, "reparto: las once gerencias siempre salen");
+igual(REP.filter(x => x.gerencia !== GENERAL).length, 10, "reparto: las diez gerencias (Planeación va dentro de Operaciones) siempre salen");
 igual(REP.find(x => x.gerencia.id === "comercial").tableros.map(t => t.id), ["a", "e", "k", "l", "m"], "reparto: Subdirección Comercial, Ventas y Marketing son Comercial");
-igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n"], "reparto: Operaciones y producción");
+igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n", "o", "q"], "reparto: Operaciones, producción y los tableros de Planeación");
 igual(REP.find(x => x.gerencia.id === "direccion").tableros.map(t => t.id), ["f"], "reparto: el grupo Dirección");
 igual(REP.find(x => x.gerencia.id === "calidad").tableros, [], "reparto: una gerencia sin tableros sale vacía");
 igual(REP.find(x => x.gerencia === GENERAL).tableros.map(t => t.id), ["c", "d", "g", "i", "j"], "reparto: sin grupo, General y grupos desconocidos van a General");
-igual(repartoPorGerencia([]).length, 11, "reparto: sin tableros no sale General");
-igual(repartoPorGerencia(undefined).length, 11, "reparto: sin lista");
+igual(repartoPorGerencia([]).length, 10, "reparto: sin tableros no sale General");
+igual(repartoPorGerencia(undefined).length, 10, "reparto: sin lista");
 igual(REP.every(x => x.tableros.every(t => t && typeof t.id === "string")), true, "reparto: sólo tableros");
+igual(REP.some(x => x.gerencia.id === "planeacion"), false, "reparto: Planeación no tiene tarjeta propia");
+igual(REP.find(x => x.gerencia.id === "operaciones").lema, "Producción, planta y planeación", "reparto: el lema de Operaciones incluye planeación");
+igual(REP.find(x => x.gerencia.id === "comercial").lema, "Venta, clientes y mercados", "reparto: las demás conservan su lema");
+igual(REP.find(x => x.gerencia === GENERAL).lema, "Tableros sin gerencia", "reparto: lema de General");
+igual(idsDeGerencias().length === 11 && idsDeGerencias().includes("planeacion") && !idsDeGerencias().includes("administrador") && !idsDeGerencias().includes("general"), true, "idsDeGerencias: las once gerencias reales, para leer sus emblemas");
 
 /* ---- perfil y leerAcceso con un servidor simulado ---- */
 const memoria = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), get claves() { return [...m.keys()]; }, volcado: () => JSON.stringify([...m]) }; };
@@ -225,6 +230,29 @@ igual(fuenteHermana(fuente, "../otra"), null, "fuenteHermana: sin salirse de la 
 igual(fuenteHermana(fuente, "a/b"), null, "fuenteHermana: un solo nombre, sin diagonales");
 igual(fuenteHermana({ tipo: "carpeta" }, "x"), null, "fuenteHermana: una fuente local no tiene hermanas");
 igual(fuenteHermana(new FuenteSP("h.invalid", "/personal/u/Documents/Sola"), "x"), null, "fuenteHermana: sin padre");
+
+/* ---- emblemas de varias gerencias (mapa de Administrador) ---- */
+const { leerEmblemasDe } = await import("../sitio/graph.js");
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
+const sirveSvg = nombres => u => {
+  const n = nombres.find(x => decodeURIComponent(u).includes("/Raiz/marca/" + x));
+  if (!n) return { estado: 404 };
+  return u.includes("/$value") ? { estado: 200, texto: SVG } : { estado: 200, json: { Name: n, Length: String(SVG.length), TimeLastModified: "2026-01-01T00:00:00Z" } };
+};
+peticiones = []; servidor = sirveSvg(["emblema-comercial.svg", "emblema-comercial-negativo.svg", "emblema-compras.svg"]);
+const em = await leerEmblemasDe(fuente, ["comercial", "compras", "calidad", "comercial", "../x", 5]);
+igual(Object.keys(em), ["comercial", "compras", "calidad"], "emblemas: una entrada por gerencia válida, sin repetidas ni nombres raros");
+igual(em.comercial && em.comercial.claro.startsWith("data:image/svg+xml;base64,") && em.comercial.oscuro.startsWith("data:image/svg+xml;base64,"), true, "emblemas: positivo y negativo como direcciones data:");
+igual(em.compras && em.compras.claro.startsWith("data:") && em.compras.oscuro === null, true, "emblemas: sin negativo, el positivo solo (va en recuadro claro)");
+igual(em.calidad, null, "emblemas: la gerencia sin emblema queda en null");
+igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath") && decodeURIComponent(u).includes("/Raiz/marca/")), true, "emblemas: sólo se pide a la carpeta marca hermana, en el mismo dominio");
+servidor = () => ({ estado: 500 });
+igual(await leerEmblemasDe(fuente, ["comercial", "calidad"]), { comercial: null, calidad: null }, "emblemas: un error del servidor no lanza, deja null");
+servidor = () => ({ estado: 403 });
+igual(await leerEmblemasDe(fuente, ["comercial"]), { comercial: null }, "emblemas: sin permiso sobre marca, null");
+igual(await leerEmblemasDe({ tipo: "carpeta" }, ["comercial"]), { comercial: null }, "emblemas: una fuente local no los lee");
+igual(await leerEmblemasDe(fuente, undefined), {}, "emblemas: sin lista");
+igual(Object.keys(await leerEmblemasDe(fuente, Array.from({ length: 50 }, (_, i) => "g" + String.fromCharCode(97 + (i % 26)) + String.fromCharCode(97 + Math.floor(i / 26))))).length <= 30, true, "emblemas: tope de 30 gerencias");
 
 // nada del correo ni de su hash se guardó en el navegador
 const despues = sessionStorage.volcado() + localStorage.volcado();

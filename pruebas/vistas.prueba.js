@@ -31,6 +31,13 @@ igual(/import \{ menuLateral, portadaView, tableroView \} from "\.\/vistas\.js"/
 igual(/function hace\(|function fechaHora\(/.test(app), false, "app.js ya no repite hace ni fechaHora");
 igual(/menuLateral\(\{/.test(app) && /portadaView\(\{/.test(app) && /tableroView\(\{/.test(app), true, "app.js usa menuLateral, portadaView y tableroView");
 
+/* ---- logos en las tarjetas del mapa ---- */
+const vsrc = leer("../sitio/vistas.js");
+igual(/emblemas && emblemas\[gerencia\.id\] \? emblemaImg\(emblemas\[gerencia\.id\], gerencia, "mapa-emblema"\) : null/.test(vsrc), true, "vistas.js: la tarjeta muestra el logo de su gerencia sólo si hay emblema");
+igual(/mapaGerencias\(tableros, hrefDe, emblemas\)/.test(vsrc) && /emblemas = \{\}/.test(vsrc), true, "vistas.js: portadaView recibe los emblemas (vacíos por omisión)");
+igual(/emblemas, accesoRoto \}\)/.test(app), true, "app.js: pasa los emblemas leídos a la portada");
+igual(/leerEmblemasDe\(f, idsDeGerencias\(\)\)/.test(app) && /if \(admin\)/.test(app), true, "app.js: sólo Administrador lee los emblemas de todas");
+
 /* ---- lo que no debe entrar a vistas.js: sesión, red, almacenamiento ---- */
 const vistas = leer("../sitio/vistas.js");
 igual(/fetch\(|localStorage|sessionStorage|innerHTML|insertAdjacentHTML|document\.write/.test(vistas), false, "vistas.js no toca red, almacenamiento ni HTML crudo");

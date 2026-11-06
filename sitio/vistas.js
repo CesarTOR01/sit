@@ -2,7 +2,7 @@
 // El sitio (app.js) y la maqueta local usan estas mismas funciones, así lo que se ve en una se ve en la otra.
 import { h } from "./comun.js";
 import { icono, iconoClave } from "./iconos.js";
-import { heroGerencia, repartoPorGerencia, GENERAL } from "./gerencias.js";
+import { heroGerencia, emblemaImg, repartoPorGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
 
 // Pasadas más de estas horas desde la última publicación, la marca de frescura se pone en ámbar.
@@ -44,18 +44,19 @@ export function menuLateral({ tableros, actualId, hrefDe, hrefInicio = "#/" }) {
 }
 
 // Portada de Administrador: una tarjeta por gerencia con sus tableros (las gerencias sin tableros lo dicen), nada queda fuera.
-function mapaGerencias(tableros, hrefDe) {
-  return h("div", { class: "mapa-gerencias" }, repartoPorGerencia(tableros).map(({ gerencia, tableros: ts }) =>
+function mapaGerencias(tableros, hrefDe, emblemas) {
+  return h("div", { class: "mapa-gerencias" }, repartoPorGerencia(tableros).map(({ gerencia, tableros: ts, lema }) =>
     h("section", { class: "mapa-gerencia", "data-gerencia": gerencia.id },
-      h("h3", {}, gerencia === GENERAL ? "General" : gerencia.nombre),
-      h("p", { class: "mapa-lema" }, gerencia === GENERAL ? "Tableros sin gerencia" : gerencia.lema),
+      h("div", { class: "mapa-cab" },
+        h("div", { class: "mapa-titulo" }, h("h3", {}, gerencia === GENERAL ? "General" : gerencia.nombre), h("p", { class: "mapa-lema" }, lema)),
+        emblemas && emblemas[gerencia.id] ? emblemaImg(emblemas[gerencia.id], gerencia, "mapa-emblema") : null),
       h("p", { class: "mapa-cuenta" }, ts.length ? ts.length + (ts.length === 1 ? " tablero" : " tableros") : "Aún sin tableros publicados"),
       ts.length ? h("ul", {}, ts.map(t => h("li", {}, h("a", { href: hrefDe(t), title: t.descripcion || null }, t.titulo)))) : null)));
 }
 
 // Portada: encabezado de la gerencia (o el título del portal si no hay sesión de la organización), aviso de acceso y el bloque Tus tableros.
 // Para Administrador, en lugar de la lista va el mapa de todas las gerencias.
-export function portadaView({ portal, tableros, hrefDe, graph, gerencia, usuario, emblema, accesoRoto }) {
+export function portadaView({ portal, tableros, hrefDe, graph, gerencia, usuario, emblema, emblemas = {}, accesoRoto }) {
   const edad = hace(portal.generado);
   const admin = !!(graph && gerencia && gerencia.id === "administrador");
   return h("div", {},
@@ -64,7 +65,7 @@ export function portadaView({ portal, tableros, hrefDe, graph, gerencia, usuario
     graph && accesoRoto ? h("div", { class: "aviso warn", role: "status" }, "No se pudo leer tu acceso; por ahora sólo se muestran los tableros generales.") : null,
     graph ? h("h3", { class: "tus-tableros" }, admin ? "Todas las gerencias" : "Tus tableros") : null,
     h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, tableros.length + (tableros.length === 1 ? " tablero" : " tableros"))),
-    admin ? mapaGerencias(tableros, hrefDe) : tableros.length ? h("div", { class: "kpis" }, tableros.map(t => {
+    admin ? mapaGerencias(tableros, hrefDe, emblemas) : tableros.length ? h("div", { class: "kpis" }, tableros.map(t => {
       const m = t.meta && t.meta.modificado ? hace(t.meta.modificado) : null;
       return h("a", { class: "kpi enlace", href: hrefDe(t) },
         h("div", { class: "et" }, t.grupo || "Tableros"), h("div", { class: "val chico" }, t.titulo),

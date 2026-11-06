@@ -227,6 +227,14 @@ export async function leerEmblemas(f, id) {
   return claro ? { claro, oscuro } : null;
 }
 
+// Los emblemas de varias gerencias a la vez ({ id: {claro, oscuro} | null }), cada uno con las mismas reglas de `leerEmblemas`.
+// Nunca lanza error: la gerencia cuyo emblema no se pueda leer queda en null.
+export async function leerEmblemasDe(f, ids) {
+  const lista = [...new Set(Array.isArray(ids) ? ids : [])].filter(id => nombreEmblema(id, false)).slice(0, 30);
+  const res = await Promise.all(lista.map(id => leerEmblemas(f, id).catch(() => null)));
+  return Object.fromEntries(lista.map((id, i) => [id, res[i]]));
+}
+
 // El catálogo ya no está donde se guardó (movido, borrado o sin permiso): se avisa sin detalles y no se busca en otro lugar.
 export const AVISO_CATALOGO = "El catálogo no está disponible; pide un enlace nuevo.";
 export const catalogoNoDisponible = e => e instanceof ErrorGraph && ["no-existe", "sin-permiso", "enlace"].includes(e.codigo);
