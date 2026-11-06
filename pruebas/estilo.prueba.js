@@ -32,6 +32,11 @@ igual(/marcarInicio/.test(app), false, "app.js: ya no queda la lógica del botó
 igual(/a\.pastilla \{[^}]*text-decoration: none/.test(css), true, "estilo.css: el enlace de regreso de ver.html se ve como botón");
 igual(/nav\.lateral a\.inicio \{/.test(css), true, "estilo.css: Inicio se separa de los grupos");
 
+/* la portada de entrada lleva el nombre del sistema como título */
+const landing = leer("../sitio/landing.js");
+igual(/h\("h1", \{ class: "landing-titulo" \}, "Sistema de Información Tornel"\)/.test(landing), true, "landing.js: el título de la portada es el nombre del sistema");
+igual(/en un solo lugar/.test(landing), false, "landing.js: ya no queda el título anterior");
+
 /* menú compacto: reglas del renglón de gerencia, de sus tableros, de la flecha y del foco; sin efectos que el manual prohíbe */
 const menuCss = css.slice(css.indexOf("/* menú lateral compacto"));
 igual(menuCss.length > 400, true, "estilo.css: está el bloque del menú compacto");

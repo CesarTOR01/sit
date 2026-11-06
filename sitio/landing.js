@@ -14,7 +14,7 @@ export function landing({ aviso = null, info = null, ofrecerBasico = false, entr
   return h("div", { class: "landing" },
     h("section", { class: "landing-hero" },
       h("div", { class: "landing-texto" },
-        h("h1", { class: "landing-titulo" }, "Los tableros de Tornel, en un solo lugar"),
+        h("h1", { class: "landing-titulo" }, "Sistema de Información Tornel"),
         info ? h("p", { class: "aviso warn" }, info) : null,
         aviso ? h("div", { class: "aviso bad", role: "alert" }, aviso) : null,
         h("div", { class: "acciones" },
