@@ -8,18 +8,26 @@ import { visiblesParaGerencia } from "./gerencias.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
+import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTema } from "./tema.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
 const aviso = (txt, clase = "bad") => estado(h("div", { class: "aviso " + clase, role: "alert" }, txt), h("p", {}, h("a", { href: "index.html" }, "Volver a los tableros")));
 const mb = n => (n / 1048576).toFixed(1) + " MB";
 
-try { const t = localStorage.getItem("tema"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (_) { /* sin almacenamiento */ }
+aplicarTema(temaGuardado());
 
 // Si el navegador restaura la página desde su memoria de navegación (atrás/adelante), se vuelve a cargar: no se muestran copias.
 addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 
 $("salir").addEventListener("click", () => { cerrarSesion(); location.replace("index.html"); });
+
+// El tema llega al tablero (aislado) como texto: al abrirlo, en su etiqueta <html> (conTema); y como aviso al marco al cambiarlo sin recargar.
+// El sitio no escucha nada del marco.
+const marco = $("marco");
+const avisarTema = () => { try { marco.contentWindow.postMessage(mensajeTema(temaActual()), "*"); } catch (_) { /* el marco aún no está listo */ } };
+$("tema").addEventListener("click", () => { alternarTema(); avisarTema(); });
+marco.addEventListener("load", avisarTema);
 
 // "2026-10-28" -> "28/10/2026"
 const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
@@ -85,7 +93,6 @@ function mostrar(html) {
   const ver = /Versi[oó]n <b>([^<]{1,40})<\/b>/.exec(html);
   if (ver) { $("version").textContent = ver[1]; $("version").hidden = false; }
   $("estado").hidden = true;
-  const marco = $("marco");
   marco.hidden = false;
-  marco.srcdoc = html;
+  marco.srcdoc = conTema(html, temaActual());
 }

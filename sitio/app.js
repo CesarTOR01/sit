@@ -20,6 +20,7 @@ import { h } from "./comun.js";
 import { landing } from "./landing.js";
 import { gerenciaDe, visiblesParaGerencia, esAdministrador, idsDeGerencias, GENERAL } from "./gerencias.js";
 import { menuLateral, portadaView, tableroView } from "./vistas.js";
+import { temaGuardado, aplicarTema, alternarTema } from "./tema.js";
 import { carpetasALeer, unirCatalogos, nombreDeCarpeta } from "./catalogos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
@@ -48,16 +49,8 @@ let emblema = null;
 let emblemas = {};
 
 /* ---------- tema ---------- */
-function tema(t) {
-  if (t) document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme");
-}
-try { tema(localStorage.getItem("tema")); } catch (_) { /* sin almacenamiento */ }
-$("tema").addEventListener("click", () => {
-  const oscuro = document.documentElement.getAttribute("data-theme") === "dark" || (!document.documentElement.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
-  const n = oscuro ? "light" : "dark";
-  tema(n);
-  try { localStorage.setItem("tema", n); } catch (_) { /* sin almacenamiento */ }
-});
+aplicarTema(temaGuardado());
+$("tema").addEventListener("click", alternarTema);
 $("menu-btn").addEventListener("click", () => { const a = $("lateral").classList.toggle("abierto"); $("menu-btn").setAttribute("aria-expanded", a); });
 
 /* ---------- lectura con control ---------- */
