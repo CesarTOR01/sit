@@ -5,7 +5,7 @@
 //                 refresco_min: cada cuántos minutos se revisa este tablero mientras está abierto y visible (1 a 1440; por omisión CONFIG.releerCadaMin)
 //                 (en la organización se llama como CONFIG.catalogo; en una carpeta local, portal.json; `archivo` es relativo a su carpeta)
 //   tablero datos { contrato:"visor/1", id, titulo, subtitulo?, generado, fuente?, bloques:[ … ] }
-//   tablero embebido: un HTML completo sin red, que se muestra en un marco aislado (ver.html)
+//   tablero embebido: un HTML completo sin red, que se muestra en un marco aislado (ver.html); si está en una carpeta hermana, ver.html lo abre con ?o=<carpeta>
 // Bloques:
 //   kpis   { tipo, titulo?, texto?, total?:{etiqueta, valor, formato, unidad?, franjas:[{hasta, estado, etiqueta?}]},
 //            items:[{ etiqueta, valor|null, formato, unidad?, meta?, aceptable?, sentido?:"mayor"|"menor", estado?,
@@ -73,7 +73,8 @@ const errorConReintento = (mensaje, id) => h("div", {},
   h("div", { class: "aviso bad", role: "alert" }, mensaje),
   h("p", {}, h("button", { class: "boton sec", onclick: () => mostrarTablero(id) }, "Reintentar")));
 
-const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) : "#/" + encodeURIComponent(t.id);
+// un embebido de una carpeta hermana se abre con `o` (el nombre de esa carpeta); el de la carpeta del enlace, sin él
+const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) + (t.origen ? "&o=" + encodeURIComponent(t.origen) : "") : "#/" + encodeURIComponent(t.id);
 
 /* ---------- pantallas ---------- */
 const actualizarOlvidar = () => { $("olvidar").hidden = !(leerUbicacion() || haySesion() || hayPendiente()); };

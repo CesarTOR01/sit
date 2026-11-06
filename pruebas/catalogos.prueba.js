@@ -1,6 +1,6 @@
 // Pruebas de la unión de catálogos de varias carpetas, sin navegador: node pruebas/catalogos.prueba.js
 import { readFileSync } from "node:fs";
-import { carpetasALeer, unirCatalogos, nombreDeCarpeta, MAX_TABLEROS } from "../sitio/catalogos.js";
+import { carpetasALeer, carpetaDeEmbebido, unirCatalogos, nombreDeCarpeta, MAX_TABLEROS } from "../sitio/catalogos.js";
 
 let ok = 0, mal = 0;
 const igual = (a, b, nombre) => {
@@ -29,6 +29,20 @@ igual(carpetasALeer({ administrador: false }), [], "sin nada");
 igual(carpetasALeer({ administrador: true, existentes: "no es lista" }), [], "existentes que no es lista");
 igual(carpetasALeer({}), [], "sin argumentos útiles");
 
+/* ---- carpetaDeEmbebido ---- */
+igual(carpetaDeEmbebido({ origen: "ventas_2027", administrador: true, propia: "facturacion" }), "ventas_2027", "administrador: cualquier hermana válida");
+igual(carpetaDeEmbebido({ origen: "ventas_2027", administrador: false, configuradas: ["ventas_2027"], propia: "facturacion" }), "ventas_2027", "otra etiqueta: la que su lista nombra");
+igual(carpetaDeEmbebido({ origen: "VENTAS_2027", administrador: false, configuradas: ["ventas_2027"] }), "ventas_2027", "otra etiqueta: sin importar mayúsculas, devuelve el nombre de su lista");
+igual(carpetaDeEmbebido({ origen: "ventas_2027", administrador: false, configuradas: ["indicadores"] }), null, "otra etiqueta: una que su lista no nombra no se abre");
+igual(carpetaDeEmbebido({ origen: "ventas_2027", administrador: false }), null, "sin lista no hay hermanas");
+igual(carpetaDeEmbebido({ origen: "acceso", administrador: true }), null, "reservada: acceso");
+igual(carpetaDeEmbebido({ origen: "Marca", administrador: true }), null, "reservada: marca (mayúsculas)");
+igual(carpetaDeEmbebido({ origen: "facturacion", administrador: true, propia: "Facturacion" }), null, "la propia carpeta no es una hermana");
+igual([ "../x", "a/b", "con espacio", "", "x".repeat(65), "a\\b" ].map(o => carpetaDeEmbebido({ origen: o, administrador: true })), [null, null, null, null, null, null], "nombres no válidos");
+igual([undefined, null, 5, {}, ["a"]].map(o => carpetaDeEmbebido({ origen: o, administrador: true })), [null, null, null, null, null], "origen que no es texto");
+igual(carpetaDeEmbebido(), null, "sin argumentos");
+igual(carpetaDeEmbebido({ origen: "x", administrador: true, configuradas: "no es lista" }), "x", "administrador no depende de la lista");
+
 /* ---- unirCatalogos ---- */
 const P = [t("a"), t("b")];
 const H = [{ carpeta: "indicadores", tableros: [t("c"), t("d")] }, { carpeta: "facturacion", tableros: [t("e")] }];
@@ -38,7 +52,9 @@ igual(unirCatalogos(P, undefined), P, "hermanas indefinidas");
 igual(unirCatalogos(undefined, H).length, 3, "sin principal");
 igual(unirCatalogos(P, [{ carpeta: "x", tableros: [t("a"), t("z")] }]).map(x => x.id), ["a", "b", "z"], "id repetido: gana la carpeta del enlace");
 igual(unirCatalogos([], [{ carpeta: "x", tableros: [t("a")] }, { carpeta: "y", tableros: [t("a"), t("b")] }]).map(x => [x.id, x.origen]), [["a", "x"], ["b", "y"]], "id repetido entre hermanas: gana la primera");
-igual(unirCatalogos(P, [{ carpeta: "x", tableros: [t("e1", { tipo: "embebido" }), t("e2", { tipo: "datos" })] }]).map(x => x.id), ["a", "b", "e2"], "los embebidos de hermanas se descartan");
+igual(unirCatalogos(P, [{ carpeta: "x", tableros: [t("e1", { tipo: "embebido" }), t("e2", { tipo: "datos" })] }]).map(x => [x.id, x.tipo || null, x.origen]), [["a", null, undefined], ["b", null, undefined], ["e1", "embebido", "x"], ["e2", "datos", "x"]], "los embebidos de hermanas se conservan con su origen");
+igual(unirCatalogos([t("ev", { tipo: "embebido" })], [{ carpeta: "x", tableros: [t("ev", { tipo: "embebido" })] }]).map(x => x.origen), [undefined], "embebido repetido: gana el de la carpeta del enlace");
+igual(unirCatalogos([], [{ carpeta: "x", tableros: [t("e1", { tipo: "embebido", origen: "otra" })] }])[0].origen, "x", "un embebido de hermana no puede fijar su origen");
 igual(unirCatalogos([t("emb", { tipo: "embebido" })], []).length, 1, "los embebidos de la carpeta del enlace se conservan");
 igual(unirCatalogos([{ id: 1 }, null, t("ok"), { id: "sin_archivo", titulo: "x" }], []).map(x => x.id), ["ok"], "tableros mal formados fuera (principal)");
 igual(unirCatalogos([], [{ carpeta: "x", tableros: [null, 5, { id: "a" }, t("b")] }]).map(x => x.id), ["b"], "tableros mal formados fuera (hermanas)");

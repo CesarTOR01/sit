@@ -3,8 +3,9 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
-import { abrirCatalogo, yo, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
-import { visiblesParaGerencia } from "./gerencias.js";
+import { abrirCatalogo, fuenteHermana, yo, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { visiblesParaGerencia, esAdministrador } from "./gerencias.js";
+import { carpetaDeEmbebido, nombreDeCarpeta } from "./catalogos.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -47,21 +48,29 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     const fuente = await abrirCatalogo();
     $("salir").hidden = false;
     yo().then(n => { if (n) $("sub").textContent = "Sesión de " + n; }).catch(() => {});
-    let cat;
-    try { cat = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo))); }
-    catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
-    if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
     // sólo los tableros que le tocan a la persona (su entrada del catálogo de acceso o, sin ella, su Departamento): los demás no se abren desde aquí
     const idn = await identidad(fuente, await perfil().catch(() => ({})));
+    // `o`: el tablero está en una carpeta hermana de la del enlace; sólo se abre si a la persona le toca esa carpeta (Administrador: cualquiera; otra etiqueta: las de su lista)
+    let origen = fuente;
+    const o = new URLSearchParams(location.search).get("o");
+    if (o !== null) {
+      const carpeta = carpetaDeEmbebido({ origen: o, administrador: esAdministrador(idn.etiquetas), configuradas: idn.carpetas, propia: nombreDeCarpeta(fuente.carpeta) });
+      origen = carpeta ? fuenteHermana(fuente, carpeta) : null;
+      if (!origen) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
+    }
+    let cat;
+    try { cat = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo))); }
+    catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
+    if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
     const t = visiblesParaGerencia(cat.tableros.filter(x => x && typeof x.id === "string"), idn.gerencia, idn.etiquetas).find(x => x.id === id);
     if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
 
-    let meta = await fuente.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
+    let meta = await origen.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
     const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
     estado(texto, barra);
-    const buf = await fuente.leer(t.archivo,
+    const buf = await origen.leer(t.archivo,
       (n, total) => { if (total) { barra.max = total; barra.value = n; texto.textContent = "Descargando " + mb(n) + " de " + mb(total); } else texto.textContent = "Descargando " + mb(n); },
       s => { texto.textContent = "Esperando respuesta del servidor… " + s + " s"; });
     if (t.sha256 && await sha256(buf) !== String(t.sha256).toLowerCase()) { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
@@ -72,13 +81,13 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     let minutos = refrescoMin(t, CONFIG.releerCadaMin);
     vigilar(async () => {
       try {
-        const ahora = await fuente.metadatos(t.archivo);
+        const ahora = await origen.metadatos(t.archivo);
         if (cambio(meta, ahora)) {
           // el catálogo se relee también: trae el sello del archivo nuevo y el refresco vigente
-          const c2 = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo)));
+          const c2 = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo)));
           const t2 = (c2.tableros || []).find(x => x && x.id === t.id && typeof x.archivo === "string");
           if (!t2) throw new Error("el tablero ya no está en el catálogo");
-          const b2 = await fuente.leer(t2.archivo);
+          const b2 = await origen.leer(t2.archivo);
           if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) throw new Error("a medio sincronizar");
           meta = ahora; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
           mostrar(aTexto(b2));

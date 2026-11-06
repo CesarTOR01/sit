@@ -231,6 +231,24 @@ igual(fuenteHermana(fuente, "a/b"), null, "fuenteHermana: un solo nombre, sin di
 igual(fuenteHermana({ tipo: "carpeta" }, "x"), null, "fuenteHermana: una fuente local no tiene hermanas");
 igual(fuenteHermana(new FuenteSP("h.invalid", "/personal/u/Documents/Sola"), "x"), null, "fuenteHermana: sin padre");
 
+/* ---- un tablero embebido en una carpeta hermana (ver.html?t=…&o=…) ---- */
+const { carpetaDeEmbebido } = await import("../sitio/catalogos.js");
+const CAT_V = JSON.stringify({ contrato: "visor/1", titulo: "SIT", tableros: [{ id: "ventas_2027", titulo: "Ventas 2027", grupo: "Comercial", tipo: "embebido", archivo: "ventas.html", sha256: "ab", bytes: 3 }], generado: "2026-01-01T00:00:00Z" });
+const sirveVentas = u => decodeURIComponent(u).includes("/Raiz/ventas_2027/sit-catalogo.json") ? (u.includes("/$value") ? { estado: 200, texto: CAT_V } : { estado: 200, json: { Name: "sit-catalogo.json", Length: String(CAT_V.length), TimeLastModified: "2026-01-01T00:00:00Z" } }) : { estado: 404 };
+const abrirPorO = async (o, admin, configuradas) => {
+  const carpeta = carpetaDeEmbebido({ origen: o, administrador: admin, configuradas, propia: "indicadores" });
+  const fh = carpeta ? fuenteHermana(fuente, carpeta) : null;
+  if (!fh) return null;
+  peticiones = []; servidor = sirveVentas;
+  return JSON.parse(new TextDecoder().decode(await fh.leer("sit-catalogo.json"))).tableros.map(x => x.id);
+};
+igual(await abrirPorO("ventas_2027", true, []), ["ventas_2027"], "embebido de hermana: el Administrador lo abre por o");
+igual(peticiones.length > 0 && peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath") && decodeURIComponent(u).includes("/Raiz/ventas_2027/")), true, "embebido de hermana: sólo pide archivos de esa carpeta, en el mismo host");
+igual(await abrirPorO("ventas_2027", false, ["ventas_2027"]), ["ventas_2027"], "embebido de hermana: otra etiqueta con la carpeta en su lista");
+igual(await abrirPorO("ventas_2027", false, ["facturacion"]), null, "embebido de hermana: sin la carpeta en su lista no se abre");
+igual(await abrirPorO("../x", true, []), null, "embebido de hermana: un nombre con ../ no se abre");
+igual(await abrirPorO("acceso", true, []), null, "embebido de hermana: las carpetas del sitio no se abren");
+
 /* ---- emblemas de varias gerencias (mapa de Administrador) ---- */
 const { leerEmblemasDe } = await import("../sitio/graph.js");
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';

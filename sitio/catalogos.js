@@ -25,13 +25,22 @@ export function carpetasALeer({ administrador, existentes = [], configuradas = [
   return salida;
 }
 
+// La carpeta hermana de la que se abre un tablero embebido (el parámetro `o` de ver.html), o null si la persona no puede leerla.
+// Mismas reglas que `carpetasALeer`: nombre válido, no reservada, no la propia; Administrador cualquier hermana, las demás etiquetas
+// sólo las que su lista nombra. Devuelve el nombre ya validado (el de la lista, si no es administrador).
+export function carpetaDeEmbebido({ origen, administrador = false, configuradas = [], propia = "" } = {}) {
+  if (typeof origen !== "string") return null;
+  const k = origen.toLowerCase();
+  const permitidas = carpetasALeer({ administrador, existentes: administrador ? [origen] : [], configuradas, propia });
+  return permitidas.find(n => n.toLowerCase() === k) || null;
+}
+
 const valido = t => t !== null && typeof t === "object" && typeof t.id === "string" && typeof t.archivo === "string" && typeof t.titulo === "string";
 
 // Une los tableros de la carpeta del enlace (`principal`) con los de las hermanas (`hermanos`: [{ carpeta, tableros }]).
-// Cada tablero de una hermana trae `origen` = el nombre de su carpeta, para leerlo de ahí. Se descartan:
+// Cada tablero de una hermana trae `origen` = el nombre de su carpeta, para leerlo de ahí (también los embebidos: ver.html los abre con `o`). Se descartan:
 //   - los tableros mal formados,
 //   - los ids repetidos (gana la carpeta del enlace y, después, la primera hermana),
-//   - los embebidos de carpetas hermanas (el visor de embebidos sólo abre los de la carpeta del enlace),
 //   - lo que pase de MAX_TABLEROS.
 export function unirCatalogos(principal, hermanos) {
   const salida = [], ids = new Set();
@@ -45,7 +54,7 @@ export function unirCatalogos(principal, hermanos) {
     if (!h || typeof h.carpeta !== "string" || !NOMBRE_CARPETA.test(h.carpeta) || !Array.isArray(h.tableros)) continue;
     for (const t of h.tableros) {
       if (salida.length >= MAX_TABLEROS) return salida;
-      if (!valido(t) || t.tipo === "embebido" || ids.has(t.id)) continue;
+      if (!valido(t) || ids.has(t.id)) continue;
       ids.add(t.id); salida.push({ ...t, origen: h.carpeta });
     }
   }
