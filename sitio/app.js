@@ -18,14 +18,14 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { landing } from "./landing.js";
-import { gerenciaDe, gerenciaDeEtiquetas, visiblesParaGerencia, esAdministrador, GENERAL } from "./gerencias.js";
+import { gerenciaDe, visiblesParaGerencia, esAdministrador, GENERAL } from "./gerencias.js";
 import { menuLateral, portadaView, tableroView } from "./vistas.js";
 import { carpetasALeer, unirCatalogos, nombreDeCarpeta } from "./catalogos.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, leerAcceso, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -303,9 +303,9 @@ async function conectarSesion() {
   try { fuente = await abrirCatalogo(); }
   catch (e) { mostrarConexion({ aviso: textoError(e) }); $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; return; }
   // el catálogo de acceso reemplaza al departamento; si existe y no se puede usar, sólo se muestra lo general
-  const acceso = await leerAcceso(fuente, p.llave);
-  if (acceso.estado === "entrada") { etiquetas = acceso.etiquetas; gerencia = gerenciaDeEtiquetas(etiquetas); extras = { admin: esAdministrador(etiquetas), carpetas: acceso.carpetas || [] }; }
-  else if (acceso.estado === "roto") { etiquetas = ["General"]; gerencia = GENERAL; accesoRoto = true; }
+  const idn = await identidad(fuente, p);
+  gerencia = idn.gerencia; etiquetas = idn.etiquetas; accesoRoto = idn.accesoRoto;
+  if (idn.entrada) extras = { admin: esAdministrador(etiquetas), carpetas: idn.carpetas };
   emblema = gerencia === GENERAL ? null : await leerEmblemas(fuente, gerencia.id);
   await conectar(fuente, CONFIG.catalogo);
 }

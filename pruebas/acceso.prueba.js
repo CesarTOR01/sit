@@ -1,6 +1,7 @@
 // Pruebas del catálogo de acceso, sin navegador ni red: node pruebas/acceso.prueba.mjs
 // Usa correos y dominios ficticios (dominio reservado .invalid) y un servidor simulado de SharePoint y Graph.
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES, MAX_CARPETAS } from "../sitio/acceso.js";
 import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esAdministrador, repartoPorGerencia, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
 
@@ -182,6 +183,26 @@ igual(peticiones.length, 1, "leerAcceso: el archivo demasiado grande no se baja"
 igual(await acceso(sirve(entradaAna), esperado, new FuenteSP("h.invalid", "/personal/u/Documents/Sola")), { estado: "sin-catalogo" }, "leerAcceso: carpeta sin padre");
 igual(peticiones.length, 0, "leerAcceso: sin padre no hay ninguna petición");
 igual(await acceso(sirve(entradaAna), esperado, { tipo: "carpeta" }), { estado: "sin-catalogo" }, "leerAcceso: una fuente local no busca acceso");
+
+/* ---- identidad: la usan el menú (index) y los embebidos (ver) ---- */
+const { identidad } = await import("../sitio/graph.js");
+const quien = async (resp, p) => { peticiones = []; servidor = resp; return identidad(fuente, p); };
+const conAdmin = JSON.stringify({ contrato: "acceso/1", personas: { [esperado]: ["Administrador", "Dirección"] }, carpetas: { "Dirección": ["facturacion"] } });
+const iAdmin = await quien(u => esCatalogo(u) ? sirve(conAdmin)(u) : { estado: 500 }, { llave: esperado, departamento: "Contabilidad" });
+igual([iAdmin.gerencia === ADMIN, iAdmin.etiquetas, iAdmin.entrada, iAdmin.accesoRoto, iAdmin.carpetas], [true, ["Administrador", "Dirección"], true, false, ["facturacion"]], "identidad: Administrador por el catálogo, aunque el Departamento diga otra cosa");
+const iDir = await quien(u => esCatalogo(u) ? sirve(JSON.stringify({ contrato: "acceso/1", personas: { [esperado]: ["Dirección"] } }))(u) : { estado: 500 }, { llave: esperado, departamento: "" });
+igual([iDir.gerencia.id, iDir.entrada, iDir.carpetas], ["direccion", true, []], "identidad: Dirección por el catálogo con Departamento vacío (el caso de un perfil sin gerencia)");
+igual(ids(visiblesParaGerencia(T, iDir.gerencia, iDir.etiquetas)), ids(T), "identidad: Dirección con Departamento vacío ve un tablero del grupo Comercial en los embebidos");
+const iSin = await quien(sirve(entradaAna), { llave: await hashCorreo(correo("otra", "ejemplo.invalid")), departamento: "Ventas" });
+igual([iSin.gerencia.id, iSin.etiquetas, iSin.entrada, iSin.accesoRoto], ["comercial", null, false, false], "identidad: sin entrada manda el Departamento");
+const iNo = await quien(() => ({ estado: 404 }), { llave: esperado, departamento: "Finanzas" });
+igual([iNo.gerencia.id, iNo.etiquetas, iNo.accesoRoto], ["finanzas", null, false], "identidad: sin catálogo de acceso manda el Departamento");
+const iRoto = await quien(() => ({ estado: 403 }), { llave: esperado, departamento: "Ventas" });
+igual([iRoto.gerencia === GENERAL, iRoto.etiquetas, iRoto.accesoRoto], [true, ["General"], true], "identidad: catálogo ilegible, sólo lo general y aviso");
+igual((await quien(() => ({ estado: 404 }), undefined)).gerencia === GENERAL, true, "identidad: sin perfil queda general");
+const veriSrc = readFileSync(new URL("../sitio/ver.js", import.meta.url), "utf8");
+igual(/identidad\(fuente, await perfil\(\)/.test(veriSrc) && /visiblesParaGerencia\([\s\S]*?idn\.gerencia, idn\.etiquetas\)/.test(veriSrc), true, "ver.js decide con la identidad del catálogo de acceso, no sólo con el Departamento");
+igual(/gerenciaDe\(/.test(veriSrc), false, "ver.js ya no decide sólo por Departamento");
 
 /* ---- carpetas hermanas: enumerar y abrir ---- */
 const { listarHermanas, fuenteHermana } = await import("../sitio/graph.js");

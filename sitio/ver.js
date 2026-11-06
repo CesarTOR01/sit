@@ -3,8 +3,8 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
-import { abrirCatalogo, yo, perfil, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
-import { gerenciaDe, visiblesParaGerencia } from "./gerencias.js";
+import { abrirCatalogo, yo, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { visiblesParaGerencia } from "./gerencias.js";
 import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -38,9 +38,9 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     try { cat = JSON.parse(aTexto(await fuente.leer(CONFIG.catalogo))); }
     catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
     if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
-    // sólo los tableros de la gerencia de la persona: los demás no se abren desde aquí
-    const gerencia = gerenciaDe((await perfil().catch(() => ({}))).departamento);
-    const t = visiblesParaGerencia(cat.tableros.filter(x => x && typeof x.id === "string"), gerencia).find(x => x.id === id);
+    // sólo los tableros que le tocan a la persona (su entrada del catálogo de acceso o, sin ella, su Departamento): los demás no se abren desde aquí
+    const idn = await identidad(fuente, await perfil().catch(() => ({})));
+    const t = visiblesParaGerencia(cat.tableros.filter(x => x && typeof x.id === "string"), idn.gerencia, idn.etiquetas).find(x => x.id === id);
     if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";

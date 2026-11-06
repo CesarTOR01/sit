@@ -4,6 +4,7 @@ import { CONFIG } from "./config.js";
 import { token, ErrorAuth } from "./auth.js";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "./acceso.js";
 import { nombreEmblema, aImagen, MAX_SVG } from "./emblemas.js";
+import { gerenciaDe, gerenciaDeEtiquetas, GENERAL } from "./gerencias.js";
 
 export class ErrorGraph extends Error {
   constructor(codigo, mensaje, estado) { super(mensaje); this.codigo = codigo; this.estado = estado || null; }
@@ -196,6 +197,16 @@ export async function leerAcceso(f, llave) {
   } catch (e) {
     return e instanceof ErrorGraph && e.codigo === "no-existe" ? { estado: "sin-catalogo" } : { estado: "roto" };
   }
+}
+
+// Quién es la persona para decidir qué se le muestra, igual en el menú (index) y en los embebidos (ver): su entrada del catálogo de
+// acceso si la tiene; si no, el Departamento de su perfil `p`; si el catálogo existe y no sirve, sólo lo general. Nunca lanza error.
+//   { gerencia, etiquetas (null = por Departamento), accesoRoto, entrada (¿hay entrada en el catálogo?), carpetas }
+export async function identidad(f, p) {
+  const acceso = await leerAcceso(f, p && p.llave);
+  if (acceso.estado === "entrada") return { gerencia: gerenciaDeEtiquetas(acceso.etiquetas), etiquetas: acceso.etiquetas, accesoRoto: false, entrada: true, carpetas: acceso.carpetas || [] };
+  if (acceso.estado === "roto") return { gerencia: GENERAL, etiquetas: ["General"], accesoRoto: true, entrada: false, carpetas: [] };
+  return { gerencia: gerenciaDe(p && p.departamento), etiquetas: null, accesoRoto: false, entrada: false, carpetas: [] };
 }
 
 // Los emblemas de la gerencia (positivo y, si existe, negativo), leídos con la cuenta de la persona desde la carpeta hermana `marca`.
