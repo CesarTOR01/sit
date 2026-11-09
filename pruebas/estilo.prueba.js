@@ -51,5 +51,11 @@ igual(/nav\.lateral details\.gm > summary:focus-visible \{/.test(menuCss), true,
 igual(/nav\.lateral \.gm-items a\[aria-current="page"\] \{/.test(menuCss) && /nav\.lateral \.gm-items \{[^}]*border-left/.test(menuCss), true, "estilo.css: línea guía y tablero activo");
 igual(/gradient\(|box-shadow|text-shadow|backdrop|blur\(|@keyframes|animation:|transition:/i.test(menuCss), false, "estilo.css: el menú compacto no lleva degradados, sombras, desenfoques ni animaciones");
 
+/* mapa de gerencias: tarjetas de la misma altura en todas las filas, sólo con dos columnas o más */
+const mapaIgual = /@media \(min-width: 608px\) and \(max-width: 860px\), \(min-width: 868px\) \{ \.mapa-gerencias \{ grid-auto-rows: 1fr; \} \}/.test(css);
+igual(mapaIgual, true, "estilo.css: las tarjetas del mapa miden lo mismo con dos columnas o más");
+igual(/^\.mapa-gerencias \{[^}]*grid-auto-rows/m.test(css), false, "estilo.css: la altura igual no aplica en una sola columna");
+igual(/\.mapa-gerencias \{[^}]*repeat\(auto-fill, minmax\(min\(280px, 100%\), 1fr\)\)/.test(css), true, "estilo.css: el ancho de las columnas sigue igual");
+
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "estilo: " + ok + " de " + ok + " pruebas bien");
 process.exit(mal ? 1 : 0);

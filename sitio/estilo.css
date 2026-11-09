@@ -344,6 +344,9 @@ td:first-child { font-weight: 700; }
 
 /* portada de Administrador: una tarjeta por gerencia, con el acento de cada una */
 .mapa-gerencias { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; margin-top: 12px; }
+/* todas las tarjetas miden lo que la más alta, en todas las filas; sólo cuando caben dos columnas o más (en una columna, cada una con su altura).
+   608 px = 2 columnas sin menú lateral (2×280 + 16 + 32 de margen del marco); 868 px = 2 columnas con el menú de 260 px al lado */
+@media (min-width: 608px) and (max-width: 860px), (min-width: 868px) { .mapa-gerencias { grid-auto-rows: 1fr; } }
 .mapa-gerencia { min-width: 0; padding: 16px; border: 1px solid var(--linea); border-top: 4px solid var(--acento); border-radius: 14px; background: var(--tarjeta); }
 .mapa-gerencia h3 { margin: 0; font-size: 17px; }
 .mapa-lema { margin: 2px 0 0; color: var(--tinta2); font-size: 13px; }
