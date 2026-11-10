@@ -10,6 +10,7 @@ import { sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTema } from "./tema.js";
+import { enlacesValidos } from "./enlaces.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
@@ -66,6 +67,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
+    pintarEnlaces(t);
 
     let meta = await origen.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
     const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
@@ -90,6 +92,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
           const b2 = await origen.leer(t2.archivo);
           if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) throw new Error("a medio sincronizar");
           meta = ahora; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
+          pintarEnlaces(t2);
           mostrar(aTexto(b2));
         }
         $("aviso-relectura").hidden = true;
@@ -98,6 +101,15 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     }, () => minutos);
   } catch (e) { aviso(textoError(e)); }
 })();
+
+// Enlaces del renglón del catálogo como botones del encabezado: sólo los que deja pasar enlacesValidos (https a *.sharepoint.com),
+// con el texto como texto y una pestaña nueva sin acceso a esta página. El tablero no abre ventanas: el enlace lo ofrece el visor.
+function pintarEnlaces(tablero) {
+  const caja = $("enlaces");
+  const lista = enlacesValidos(tablero);
+  caja.replaceChildren(...lista.map(e => h("a", { class: "pastilla", href: e.url, target: "_blank", rel: "noopener noreferrer" }, e.titulo)));
+  caja.hidden = lista.length === 0;
+}
 
 // Pone el HTML del tablero en el marco aislado y lee de su texto el corte y la versión (el marco no deja leerlos desde aquí).
 function mostrar(html) {
