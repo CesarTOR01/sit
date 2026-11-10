@@ -249,6 +249,22 @@ igual(await abrirPorO("ventas_2027", false, ["facturacion"]), null, "embebido de
 igual(await abrirPorO("../x", true, []), null, "embebido de hermana: un nombre con ../ no se abre");
 igual(await abrirPorO("acceso", true, []), null, "embebido de hermana: las carpetas del sitio no se abren");
 
+/* ---- vendedor con rama opaca: etiquetas ["Fuerza de ventas", "rNN"] y una carpeta hermana por rama ---- */
+const ETQ_FV = ["Fuerza de ventas", "r07"];
+const CARP_FV = { "r07": ["r07"], "r08": ["r08"] };
+igual(conCarpetas(CARP_FV, ETQ_FV), { estado: "entrada", etiquetas: ETQ_FV, carpetas: ["r07"] }, "vendedor: sólo lee la carpeta de su rama");
+igual(conCarpetas(CARP_FV, ["Fuerza de ventas"]), { estado: "entrada", etiquetas: ["Fuerza de ventas"] }, "vendedor sin rama: no lee ninguna carpeta");
+const T_FV = [
+  { id: "fv", grupo: "Facturación", audiencias: ["Fuerza de ventas"], tipo: "embebido" },
+  { id: "otra", grupo: "Facturación", audiencias: ["Dirección"], tipo: "embebido" },
+  { id: "sin", grupo: "Facturación", tipo: "embebido" },
+];
+igual(ids(visiblesParaGerencia(T_FV, gerenciaDeEtiquetas(ETQ_FV), ETQ_FV)), ["fv"], "vendedor: ve el tablero de su audiencia y nada más");
+igual(esAdministrador(ETQ_FV), false, "vendedor: no es administrador");
+igual(carpetaDeEmbebido({ origen: "r07", administrador: false, configuradas: ["r07"], propia: "inicio" }), "r07", "vendedor: abre el tablero de su rama por o");
+igual(carpetaDeEmbebido({ origen: "r08", administrador: false, configuradas: ["r07"], propia: "inicio" }), null, "vendedor: no abre la rama de otro por o");
+igual(carpetaDeEmbebido({ origen: "acceso", administrador: false, configuradas: ["r07"], propia: "inicio" }), null, "vendedor: no abre las carpetas del sitio");
+
 /* ---- emblemas de varias gerencias (mapa de Administrador) ---- */
 const { leerEmblemasDe } = await import("../sitio/graph.js");
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
