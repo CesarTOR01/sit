@@ -54,7 +54,7 @@ const verjs = leer("../sitio/ver.js");
 igual(/"ver\.html\?t=" \+ encodeURIComponent\(t\.id\) \+ \(t\.origen \? "&o=" \+ encodeURIComponent\(t\.origen\) : ""\)/.test(app), true, "app.js: el enlace de un embebido de hermana lleva &o=<carpeta>, el de la carpeta del enlace no");
 igual(/carpetaDeEmbebido\(\{ origen: o, administrador: esAdministrador\(idn\.etiquetas\), configuradas: idn\.carpetas, propia: nombreDeCarpeta\(fuente\.carpeta\) \}\)/.test(verjs), true, "ver.js: la carpeta o se valida con las reglas de la persona");
 igual(/origen = carpeta \? fuenteHermana\(fuente, carpeta\) : null/.test(verjs) && /if \(!origen\) \{ aviso\("Ese tablero no existe o no se muestra en esta página\."\); return; \}/.test(verjs), true, "ver.js: una carpeta no válida o que no le toca dice lo mismo que un tablero que no existe");
-igual((verjs.match(/origen\.(leer|metadatos)\(/g) || []).length === 6 && !/\bfuente\.(leer|metadatos)\(/.test(verjs), true, "ver.js: catálogo, archivo, metadatos y relectura salen de la carpeta del tablero");
+igual((verjs.match(/origen\.(leer|metadatos)\(/g) || []).length === 7 && !/\bfuente\.(leer|metadatos)\(/.test(verjs), true, "ver.js: catálogo, archivo, metadatos y relectura salen de la carpeta del tablero");
 
 /* ---- lo que no debe entrar a vistas.js: sesión, red, almacenamiento ---- */
 const vistas = leer("../sitio/vistas.js");

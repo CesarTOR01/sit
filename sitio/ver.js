@@ -11,6 +11,7 @@ import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTema } from "./tema.js";
 import { enlacesValidos } from "./enlaces.js";
+import { cargarConSello } from "./cargainicial.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
@@ -59,12 +60,21 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
       origen = carpeta ? fuenteHermana(fuente, carpeta) : null;
       if (!origen) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     }
+    // catálogo y renglón del tablero: se usan en la primera lectura y en cada reintento de la carga inicial
+    const leerCat = async () => {
+      const c = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo)));
+      if (c.contrato !== "visor/1" || !Array.isArray(c.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
+      return c;
+    };
+    const buscarTablero = c => {
+      const x = visiblesParaGerencia(c.tableros.filter(y => y && typeof y.id === "string"), idn.gerencia, idn.etiquetas).find(y => y.id === id);
+      return x && x.tipo === "embebido" && typeof x.archivo === "string" ? x : null;
+    };
     let cat;
-    try { cat = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo))); }
+    try { cat = await leerCat(); }
     catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
-    if (cat.contrato !== "visor/1" || !Array.isArray(cat.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
-    const t = visiblesParaGerencia(cat.tableros.filter(x => x && typeof x.id === "string"), idn.gerencia, idn.etiquetas).find(x => x.id === id);
-    if (!t || t.tipo !== "embebido" || typeof t.archivo !== "string") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
+    let t = buscarTablero(cat);
+    if (!t) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
     pintarEnlaces(t);
@@ -72,10 +82,23 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     let meta = await origen.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
     const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
     estado(texto, barra);
-    const buf = await origen.leer(t.archivo,
-      (n, total) => { if (total) { barra.max = total; barra.value = n; texto.textContent = "Descargando " + mb(n) + " de " + mb(total); } else texto.textContent = "Descargando " + mb(n); },
-      s => { texto.textContent = "Esperando respuesta del servidor… " + s + " s"; });
-    if (t.sha256 && await sha256(buf) !== String(t.sha256).toLowerCase()) { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
+    // si el sello no cuadra (catálogo y archivo a medio publicar) se espera y se releen los dos: cada 30 s, hasta 10 veces
+    let primera = true;
+    const r = await cargarConSello({
+      leerCatalogo: async () => { if (primera) { primera = false; return cat; } return leerCat(); },
+      buscarTablero,
+      leerArchivo: ruta => origen.leer(ruta,
+        (n, total) => { if (total) { barra.max = total; barra.value = n; texto.textContent = "Descargando " + mb(n) + " de " + mb(total); } else texto.textContent = "Descargando " + mb(n); },
+        s => { texto.textContent = "Esperando respuesta del servidor… " + s + " s"; }),
+      sha256,
+      esperar: ms => new Promise(listo => setTimeout(listo, ms)),
+      avisar: ({ intento, de }) => { barra.max = 1; barra.value = 0; texto.textContent = "Descargando…"; estado(h("p", { class: "sub-tab" }, "Actualizando el tablero… intento " + intento + " de " + de), texto, barra); },
+    });
+    if (r.estado === "no_existe") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
+    if (r.estado !== "ok") { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
+    const buf = r.buf;
+    // si un reintento trajo otro renglón (otro archivo o refresco), la relectura sigue ese renglón y sus enlaces
+    if (r.t && r.t !== t) { if (r.t.archivo !== t.archivo) meta = await origen.metadatos(r.t.archivo).catch(() => null); t = r.t; pintarEnlaces(t); }
 
     mostrar(aTexto(buf));
     // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible; cada `refresco_min` minutos
