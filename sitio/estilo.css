@@ -5,7 +5,7 @@
   --accion: var(--b-301); --sobre-accion: #ffffff; --marca: var(--b-299); --sombra: 0 1px 3px rgba(15, 23, 42, .08);
   /* acento de cada gerencia: colores ampliados del manual (185C, 021C, 211C, Violet C, 285C, 3275C, 355C) y de las submarcas */
   --acc-comercial: #0071ce; --acc-operaciones: #ff5200; --acc-regulatorios: #410099; --acc-control: var(--b-301); --acc-calidad: #00b09b; --acc-finanzas: #00af42;
-  --acc-compras: #febd29; --acc-planeacion: #f37e7a; --acc-rrhh: #fa7fb6; --acc-sistemas: var(--b-cian); --acc-direccion: var(--b-2955);
+  --acc-compras: #febd29; --acc-planeacion: #f37e7a; --acc-servicios: #1e3a8a; --acc-direccion: var(--b-2955);
   --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fee2e2;
   --na: #64748b; --na-bg: #e2e8f0;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
@@ -14,7 +14,7 @@
 :root[data-theme="dark"] {
   --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
   --accion: var(--b-cian); --sobre-accion: #00203a; --marca: var(--b-cian); --sombra: 0 1px 3px rgba(0, 0, 0, .5);
-  --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian);
+  --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian); --acc-servicios: #8ea8ec;
   --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
   --na: #94a3b8; --na-bg: #1e293b;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
@@ -23,7 +23,7 @@
   :root:not([data-theme="light"]) {
     --fondo: #091826; --tarjeta: #0e2235; --tinta: #ecf3f9; --tinta2: #9fb4c4; --linea: #1a3349;
     --accion: var(--b-cian); --sobre-accion: #00203a; --marca: var(--b-cian); --sombra: 0 1px 3px rgba(0, 0, 0, .5);
-    --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian);
+    --acc-comercial: #73b1e4; --acc-regulatorios: #9773c7; --acc-control: #739cbe; --acc-direccion: var(--b-cian); --acc-servicios: #8ea8ec;
     --ok: #4ade80; --ok-bg: #14532d; --warn: #fbbf24; --warn-bg: #451a03; --bad: #f87171; --bad-bg: #450a0a;
     --na: #94a3b8; --na-bg: #1e293b;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
@@ -222,8 +222,7 @@ body { --acento: var(--accion); }
 [data-gerencia="finanzas"] { --acento: var(--acc-finanzas); }
 [data-gerencia="compras"] { --acento: var(--acc-compras); }
 [data-gerencia="planeacion"] { --acento: var(--acc-planeacion); }
-[data-gerencia="rrhh"] { --acento: var(--acc-rrhh); }
-[data-gerencia="sistemas"] { --acento: var(--acc-sistemas); }
+[data-gerencia="servicios"] { --acento: var(--acc-servicios); }
 [data-gerencia="direccion"], [data-gerencia="administrador"] { --acento: var(--acc-direccion); }
 .hero-gerencia { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: center; margin-bottom: 20px; padding: 20px 24px; border-radius: 14px; border: 1px solid var(--linea); border-left: 6px solid var(--acento); background: color-mix(in srgb, var(--acento) 9%, var(--tarjeta)); }
 .hero-nombre { margin: 0 0 4px; font-size: clamp(26px, 3.4vw, 34px); line-height: 1.1; font-weight: 700; }

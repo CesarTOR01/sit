@@ -19,7 +19,7 @@ export const TRAZOS = {
 };
 
 // El ícono de cada gerencia en el menú (por el id de la gerencia); sin coincidencia, el del panel.
-const ICONO_GERENCIA = { comercial: "tendencia", operaciones: "planta", regulatorios: "regulatorios", control: "ajustes", calidad: "calidad", finanzas: "banco", rrhh: "personas", sistemas: "chip", direccion: "panel" };
+const ICONO_GERENCIA = { comercial: "tendencia", operaciones: "planta", regulatorios: "regulatorios", control: "ajustes", calidad: "calidad", finanzas: "banco", servicios: "personas", direccion: "panel" };
 export const claveGerencia = id => Object.prototype.hasOwnProperty.call(ICONO_GERENCIA, id) ? ICONO_GERENCIA[id] : "panel";
 
 export function claveIcono(t) {

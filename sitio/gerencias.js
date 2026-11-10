@@ -13,8 +13,7 @@ const GERENCIAS = [
   { id: "finanzas", nombre: "Finanzas", lema: "Resultados, costos y cartera", claves: ["finanzas", "contabilidad", "tesoreria", "costos", "administracion", "cobranza"] },
   { id: "compras", nombre: "Compras", lema: "Abasto y proveedores", claves: ["compras", "abasto", "abastecimiento", "logistica", "almacen"] },
   { id: "planeacion", nombre: "Planeación", lema: "Plan, demanda y cobertura", claves: ["planeacion", "planificacion", "cadena de suministro", "supply", "demanda"] },
-  { id: "rrhh", nombre: "Recursos Humanos", lema: "Personas y desarrollo", claves: ["recursos humanos", "capital humano", "rrhh", "talento", "personal", "nomina"] },
-  { id: "sistemas", nombre: "Sistemas", lema: "Datos y plataformas", claves: ["sistemas", "tecnologia", "informatica", "datos", "ti"] },
+  { id: "servicios", nombre: "Servicios Corporativos", lema: "Personas, datos y plataformas", claves: ["servicios corporativos", "subdireccion de servicios", "recursos humanos", "capital humano", "rrhh", "talento", "personal", "nomina", "sistemas", "tecnologia", "informatica", "datos", "ti"] },
   { id: "direccion", nombre: "Dirección", lema: "La empresa completa", claves: ["direccion", "director", "gerencia general", "ejecutivo", "presidencia"] },
 ];
 export const GENERAL = { id: "general", nombre: "SIT", lema: "Los tableros de tu cuenta" };
@@ -22,6 +21,11 @@ export const GENERAL = { id: "general", nombre: "SIT", lema: "Los tableros de tu
 export const ADMIN = { id: "administrador", nombre: "Administrador", lema: "Todas las gerencias y todos los tableros" };
 
 const sinAcentos = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+// Nombres e ids anteriores que siguen valiendo como etiqueta del catálogo de acceso y como id de ilustración:
+// Recursos Humanos y Sistemas forman ahora Servicios Corporativos. Un alias no crea una tarjeta propia.
+const ALIAS = { "recursos humanos": "servicios", rrhh: "servicios", sistemas: "servicios" };
+const deAlias = k => Object.prototype.hasOwnProperty.call(ALIAS, k) ? ALIAS[k] : k;
 
 export function gerenciaDe(departamento) {
   const t = " " + sinAcentos(departamento) + " ";
@@ -35,9 +39,9 @@ export const esGrupoDe = (grupo, g) => {
   return g !== GENERAL && (de === g.id || (de === "operaciones" && (g.id === "compras" || g.id === "planeacion")));
 };
 
-// Una etiqueta del catálogo de acceso es el nombre exacto de una gerencia (o su id) o "General"; otra cosa no es una gerencia.
+// Una etiqueta del catálogo de acceso es el nombre exacto de una gerencia (o su id, o uno de sus alias) o "General"; otra cosa no es una gerencia.
 const gerenciaDeEtiqueta = e => {
-  const k = sinAcentos(e);
+  const k = deAlias(sinAcentos(e));
   return k === "general" ? GENERAL : [ADMIN, ...GERENCIAS].find(g => k === sinAcentos(g.nombre) || k === g.id) || null;
 };
 // La persona del catálogo de acceso es administradora si trae la etiqueta Administrador.
@@ -130,12 +134,13 @@ const ARTE = {
   planeacion: () => [
     ...[[24, 34, 110], [70, 62, 130], [122, 90, 92], [170, 118, 120]].map(([x, y, w], i) => r(x, y, w, 18, i % 2 ? "g-suave" : "g-acento", 9)),
     l(176, 18, 176, 150, "g-hoy"), p("M296 118 l12 12 l-12 12 l-12 -12 z", "g-hito"), ...[0, 1, 2, 3, 4, 5].map(i => l(24 + i * 50, 150, 24 + i * 50, 158, "g-base"))],
-  rrhh: () => [
-    ...[[84, 76, 0], [236, 76, 0], [160, 60, 1]].map(([x, y, grande]) => [c(x, y, grande ? 22 : 17, grande ? "g-acento" : "g-suave"), p(`M${x - (grande ? 40 : 32)} ${y + (grande ? 78 : 60)} a${grande ? 40 : 32} ${grande ? 40 : 32} 0 0 1 ${grande ? 80 : 64} 0 z`, grande ? "g-acento" : "g-suave")]).flat(),
-    p("M84 150 C120 176 200 176 236 150", "g-ruta")],
-  sistemas: () => [
-    l(60, 50, 140, 90, "g-enlace"), l(140, 90, 230, 50, "g-enlace"), l(140, 90, 180, 140, "g-enlace"), l(140, 90, 80, 130, "g-enlace"), l(230, 50, 280, 110, "g-enlace"), l(180, 140, 280, 110, "g-enlace"),
-    c(60, 50, 11, "g-suave"), c(230, 50, 13, "g-suave"), c(180, 140, 12, "g-suave"), c(80, 130, 10, "g-suave"), c(280, 110, 12, "g-suave"), c(140, 90, 24, "g-acento"), c(140, 90, 9, "g-fondo")],
+  // personas conectadas por una red: tres figuras unidas entre sí y con nodos de la red alrededor
+  servicios: () => [
+    l(84, 80, 160, 62, "g-enlace"), l(160, 62, 236, 80, "g-enlace"), l(84, 80, 34, 34, "g-enlace"), l(160, 62, 160, 16, "g-enlace"), l(236, 80, 286, 34, "g-enlace"),
+    l(84, 80, 26, 118, "g-enlace"), l(236, 80, 294, 118, "g-enlace"), l(34, 34, 160, 16, "g-enlace"), l(160, 16, 286, 34, "g-enlace"),
+    ...[[84, 80, 0], [236, 80, 0], [160, 62, 1]].map(([x, y, grande]) => [c(x, y, grande ? 22 : 17, grande ? "g-acento" : "g-suave"), p(`M${x - (grande ? 40 : 32)} ${y + (grande ? 78 : 60)} a${grande ? 40 : 32} ${grande ? 40 : 32} 0 0 1 ${grande ? 80 : 64} 0 z`, grande ? "g-acento" : "g-suave")]).flat(),
+    c(34, 34, 8, "g-nodo"), c(160, 16, 7, "g-nodo"), c(286, 34, 8, "g-nodo"), c(26, 118, 6, "g-nodo"), c(294, 118, 6, "g-nodo"),
+    p("M84 152 C120 176 200 176 236 152", "g-ruta")],
   direccion: () => [
     c(262, 46, 24, "g-acento"),
     ...[[22, 70], [58, 104], [94, 56], [130, 88], [166, 112], [202, 74], [238, 100], [274, 84]].map(([x, alto], i) => r(x, 152 - alto, 30, alto, i === 2 ? "g-acento" : "g-suave", 3)),
@@ -144,8 +149,11 @@ const ARTE = {
 ARTE.general = ARTE.direccion;
 ARTE.administrador = ARTE.direccion;
 
+// Un id anterior (rrhh, sistemas) se dibuja con la ilustración de la gerencia que lo absorbió.
 export function ilustracion(id) {
-  return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (id || "SIT") }, c(160, 90, 100, "g-anillo"), c(176, 82, 86, "g-anillo"), ...(ARTE[id] || ARTE.general)());
+  const k = deAlias(id);
+  const arte = Object.prototype.hasOwnProperty.call(ARTE, k) ? ARTE[k] : ARTE.general;
+  return s("svg", { class: "g-arte", viewBox: "0 0 320 180", role: "img", "aria-label": "Ilustración de " + (k || "SIT") }, c(160, 90, 100, "g-anillo"), c(176, 82, 86, "g-anillo"), ...arte());
 }
 
 // El emblema oficial de la gerencia ({claro, oscuro} como direcciones data:, ver emblemas.js): positivo en tema claro y negativo en oscuro;

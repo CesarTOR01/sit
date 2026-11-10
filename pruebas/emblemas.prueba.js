@@ -13,7 +13,8 @@ const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 5"><path fi
 
 /* ---- nombres ---- */
 igual(nombreEmblema("comercial", false), "emblema-comercial.svg", "nombre positivo");
-igual(nombreEmblema("rrhh", true), "emblema-rrhh-negativo.svg", "nombre negativo");
+igual(nombreEmblema("servicios", true), "emblema-servicios-negativo.svg", "nombre negativo");
+igual(nombreEmblema("servicios", false), "emblema-servicios.svg", "nombre positivo de Servicios Corporativos");
 igual(nombreEmblema("../x", false), null, "nombre con ..");
 igual(nombreEmblema("a/b", false), null, "nombre con diagonal");
 igual(nombreEmblema("Comercial", false), null, "nombre con mayúsculas");

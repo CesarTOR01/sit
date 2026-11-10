@@ -34,9 +34,11 @@ igual(["factur", "x", "venta", "prod", "costo", "calidad", "aviso", ""].every(id
 igual(["regulatorios", "personas", "chip", "ajustes"].every(k => claves.includes(k)), true, "están los íconos de gerencia");
 
 /* ---- el ícono de cada gerencia del menú ---- */
-const GER = ["comercial", "operaciones", "regulatorios", "control", "calidad", "finanzas", "rrhh", "sistemas", "direccion"];
+const GER = ["comercial", "operaciones", "regulatorios", "control", "calidad", "finanzas", "servicios", "direccion"];
 igual(GER.every(id => claves.includes(claveGerencia(id))), true, "toda gerencia tiene un ícono que existe");
-igual(new Set(GER.filter(id => id !== "direccion").map(claveGerencia)).size, 8, "las ocho gerencias con ícono propio no repiten");
+igual(new Set(GER.filter(id => id !== "direccion").map(claveGerencia)).size, 7, "las siete gerencias con ícono propio no repiten");
+igual(claveGerencia("servicios"), "personas", "Servicios Corporativos usa el ícono de personas");
+igual([claveGerencia("rrhh"), claveGerencia("sistemas")], ["panel", "panel"], "los ids anteriores ya no tienen ícono propio en el menú");
 igual(claveGerencia("general"), "panel", "General usa el panel");
 igual(claveGerencia("toString"), "panel", "un nombre heredado no es una gerencia");
 igual(claveGerencia(undefined), "panel", "sin gerencia: panel");

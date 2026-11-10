@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES, MAX_CARPETAS } from "../sitio/acceso.js";
-import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esAdministrador, repartoPorGerencia, idsDeGerencias, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
+import { visiblesParaGerencia, gerenciaDeEtiquetas, gerenciaDe, esGrupoDe, esAdministrador, repartoPorGerencia, idsDeGerencias, todasLasGerencias, GENERAL, ADMIN } from "../sitio/gerencias.js";
 
 let ok = 0, mal = 0;
 const igual = (a, b, nombre) => {
@@ -131,20 +131,53 @@ const REP = repartoPorGerencia([...T, { id: "k", grupo: "Subdirección Comercial
 const todos = REP.flatMap(x => x.tableros.map(t => t.id));
 igual(todos.length, T.length + 7, "reparto: cada tablero aparece exactamente una vez (los nulos se ignoran)");
 igual(new Set(todos).size, todos.length, "reparto: ningún tablero repetido");
-igual(REP.filter(x => x.gerencia !== GENERAL).length, 9, "reparto: las nueve gerencias (Planeación y Compras van dentro de Operaciones) siempre salen");
+igual(REP.filter(x => x.gerencia !== GENERAL).length, 8, "reparto: las ocho gerencias (Planeación y Compras van dentro de Operaciones; Recursos Humanos y Sistemas son Servicios Corporativos) siempre salen");
 igual(REP.find(x => x.gerencia.id === "comercial").tableros.map(t => t.id), ["a", "e", "k", "l", "m"], "reparto: Subdirección Comercial, Ventas y Marketing son Comercial");
 igual(REP.find(x => x.gerencia.id === "operaciones").tableros.map(t => t.id), ["h", "n", "o", "q", "r"], "reparto: Operaciones, producción y los tableros de Planeación y de Compras");
 igual(REP.find(x => x.gerencia.id === "direccion").tableros.map(t => t.id), ["f"], "reparto: el grupo Dirección");
 igual(REP.find(x => x.gerencia.id === "calidad").tableros, [], "reparto: una gerencia sin tableros sale vacía");
 igual(REP.find(x => x.gerencia === GENERAL).tableros.map(t => t.id), ["c", "d", "g", "i", "j"], "reparto: sin grupo, General y grupos desconocidos van a General");
-igual(repartoPorGerencia([]).length, 9, "reparto: sin tableros no sale General");
-igual(repartoPorGerencia(undefined).length, 9, "reparto: sin lista");
+igual(repartoPorGerencia([]).length, 8, "reparto: sin tableros no sale General");
+igual(repartoPorGerencia(undefined).length, 8, "reparto: sin lista");
 igual(REP.every(x => x.tableros.every(t => t && typeof t.id === "string")), true, "reparto: sólo tableros");
 igual(REP.some(x => x.gerencia.id === "planeacion" || x.gerencia.id === "compras"), false, "reparto: Planeación y Compras no tienen tarjeta propia");
 igual(REP.find(x => x.gerencia.id === "operaciones").lema, "Producción, planta, planeación y compras", "reparto: el lema de Operaciones incluye planeación y compras");
 igual(REP.find(x => x.gerencia.id === "comercial").lema, "Venta, clientes y mercados", "reparto: las demás conservan su lema");
 igual(REP.find(x => x.gerencia === GENERAL).lema, "Tableros sin gerencia", "reparto: lema de General");
-igual(idsDeGerencias().length === 9 && idsDeGerencias().includes("operaciones") && !idsDeGerencias().includes("planeacion") && !idsDeGerencias().includes("compras") && !idsDeGerencias().includes("administrador") && !idsDeGerencias().includes("general"), true, "idsDeGerencias: las nueve gerencias con tarjeta, para leer sus emblemas");
+igual(idsDeGerencias().length === 8 && idsDeGerencias().includes("operaciones") && !idsDeGerencias().includes("planeacion") && !idsDeGerencias().includes("compras") && !idsDeGerencias().includes("administrador") && !idsDeGerencias().includes("general"), true, "idsDeGerencias: las ocho gerencias con tarjeta, para leer sus emblemas");
+
+/* ---- Servicios Corporativos: Recursos Humanos y Sistemas en una sola gerencia ---- */
+const SERV = todasLasGerencias().find(g => g.id === "servicios");
+igual(SERV && [SERV.nombre, SERV.lema], ["Servicios Corporativos", "Personas, datos y plataformas"], "servicios: nombre y lema");
+igual(todasLasGerencias().some(g => g.id === "rrhh" || g.id === "sistemas"), false, "servicios: ya no hay gerencias rrhh ni sistemas");
+for (const dep of ["Capital Humano", "Recursos Humanos", "Sistemas", "TI", "Tecnología", "Servicios Corporativos", "Subdirección de Servicios", "Nómina", "Informática"]) igual(gerenciaDe(dep).id, "servicios", "servicios: el departamento " + dep);
+igual(gerenciaDe("Contabilidad").id, "finanzas", "servicios: Contabilidad sigue en Finanzas");
+igual(gerenciaDe("Cuenta titular").id, "general", "servicios: la clave corta ti sólo cuenta como palabra completa");
+for (const et of ["Recursos Humanos", "Sistemas", "rrhh", "sistemas", "RECURSOS HUMANOS", "sistémas", "Servicios Corporativos", "servicios"]) igual(gerenciaDeEtiquetas([et]).id, "servicios", "servicios: la etiqueta " + et);
+igual(gerenciaDeEtiquetas(["zzz", "Sistemas"]).id, "servicios", "servicios: un alias cuenta como la primera gerencia reconocida");
+igual(gerenciaDeEtiquetas(["Sistemas", "Dirección"]).id, "direccion", "servicios: Dirección sigue mandando sobre un alias");
+igual(esAdministrador(["Recursos Humanos", "Sistemas"]), false, "servicios: un alias no da Administrador");
+igual(esAdministrador(["Sistemas", "Administrador"]), true, "servicios: Administrador sigue valiendo junto a un alias");
+igual(esGrupoDe("Recursos Humanos", SERV), true, "servicios: el grupo Recursos Humanos es de Servicios Corporativos");
+igual(esGrupoDe("Sistemas", SERV), true, "servicios: el grupo Sistemas es de Servicios Corporativos");
+igual(esGrupoDe("Finanzas", SERV), false, "servicios: el grupo Finanzas no lo es");
+const T_SC = [
+  { id: "rh1", grupo: "Recursos Humanos" },
+  { id: "si1", grupo: "Sistemas" },
+  { id: "sc1", grupo: "Servicios Corporativos" },
+  { id: "fi1", grupo: "Finanzas" },
+  { id: "ge1", grupo: "General" },
+];
+// Comportamiento esperado de la unión: quien trae una de las dos etiquetas ve en el menú los tableros de la otra (SharePoint decide si los puede leer).
+igual(ids(visiblesParaGerencia(T_SC, gerenciaDeEtiquetas(["Sistemas"]), ["Sistemas"])), ["rh1", "si1", "sc1"], "servicios: la etiqueta Sistemas ve también los tableros del grupo Recursos Humanos");
+igual(ids(visiblesParaGerencia(T_SC, gerenciaDeEtiquetas(["Recursos Humanos"]), ["Recursos Humanos"])), ["rh1", "si1", "sc1"], "servicios: la etiqueta Recursos Humanos ve también los de Sistemas");
+igual(ids(visiblesParaGerencia(T_SC, gerenciaDe("Capital Humano"))), ["rh1", "si1", "sc1"], "servicios: sin etiquetas, por departamento");
+const REP_SC = repartoPorGerencia(T_SC);
+igual(REP_SC.some(x => x.gerencia.id === "rrhh" || x.gerencia.id === "sistemas"), false, "servicios: el reparto no trae tarjetas rrhh ni sistemas");
+igual(REP_SC.filter(x => x.gerencia.id === "servicios").length, 1, "servicios: una sola tarjeta en el reparto");
+igual(REP_SC.find(x => x.gerencia.id === "servicios").tableros.map(t => t.id), ["rh1", "si1", "sc1"], "servicios: los tableros de ambos grupos en su tarjeta");
+igual(REP_SC.find(x => x.gerencia.id === "servicios").lema, "Personas, datos y plataformas", "servicios: lema de la tarjeta");
+igual(idsDeGerencias().includes("servicios") && !idsDeGerencias().includes("rrhh") && !idsDeGerencias().includes("sistemas"), true, "servicios: idsDeGerencias trae servicios y no rrhh ni sistemas");
 
 /* ---- perfil y leerAcceso con un servidor simulado ---- */
 const memoria = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), get claves() { return [...m.keys()]; }, volcado: () => JSON.stringify([...m]) }; };
@@ -287,6 +320,13 @@ igual(await leerEmblemasDe(fuente, ["comercial"]), { comercial: null }, "emblema
 igual(await leerEmblemasDe({ tipo: "carpeta" }, ["comercial"]), { comercial: null }, "emblemas: una fuente local no los lee");
 igual(await leerEmblemasDe(fuente, undefined), {}, "emblemas: sin lista");
 igual(Object.keys(await leerEmblemasDe(fuente, Array.from({ length: 50 }, (_, i) => "g" + String.fromCharCode(97 + (i % 26)) + String.fromCharCode(97 + Math.floor(i / 26))))).length <= 30, true, "emblemas: tope de 30 gerencias");
+peticiones = []; servidor = sirveSvg(["emblema-comercial.svg"]);
+const emSin = await leerEmblemasDe(fuente, idsDeGerencias());
+igual(Object.prototype.hasOwnProperty.call(emSin, "servicios") && emSin.servicios === null, true, "emblemas: sin emblema-servicios.svg, Servicios Corporativos queda en null (el frente usa la ilustración)");
+igual(peticiones.some(u => decodeURIComponent(u).includes("/Raiz/marca/emblema-servicios.svg")) && !peticiones.some(u => /emblema-(rrhh|sistemas)/.test(decodeURIComponent(u))), true, "emblemas: se pide emblema-servicios.svg y ya no los de rrhh ni sistemas");
+servidor = sirveSvg(["emblema-servicios.svg", "emblema-servicios-negativo.svg"]);
+const emCon = await leerEmblemasDe(fuente, idsDeGerencias());
+igual(emCon.servicios && emCon.servicios.claro.startsWith("data:image/svg+xml;base64,") && emCon.servicios.oscuro.startsWith("data:image/svg+xml;base64,"), true, "emblemas: con emblema-servicios.svg y su negativo, Servicios Corporativos los usa");
 
 // nada del correo ni de su hash se guardó en el navegador
 const despues = sessionStorage.volcado() + localStorage.volcado();
