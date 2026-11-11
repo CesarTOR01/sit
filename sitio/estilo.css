@@ -388,3 +388,15 @@ nav.lateral .gm-items a[aria-current="page"] { border-left: 0; background: color
   nav.lateral details.gm > summary { min-height: 44px; }
   nav.lateral a.inicio, nav.lateral .gm-items a { display: flex; align-items: center; min-height: 44px; }
 }
+/* "Ver como" (sólo Administrador): el control arriba de la portada y la franja fija mientras hay una vista simulada */
+.vercomo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 12px; border: 1px dashed var(--linea); border-radius: 10px; background: var(--tarjeta); }
+.vercomo label { font-weight: 700; color: var(--tinta); }
+.vercomo input { flex: 1 1 220px; min-width: 0; padding: 6px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--fondo); color: var(--tinta); font: inherit; }
+.vercomo input:focus-visible, .vercomo .boton:focus-visible, .franja-vercomo .boton:focus-visible { outline: 2px solid var(--accion); outline-offset: 1px; }
+.vercomo .aviso { flex-basis: 100%; margin: 0; }
+.franja-vercomo { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 14px; padding: 8px 16px; background: var(--warn-bg); color: var(--tinta); border-top: 2px solid var(--warn); font-weight: 600; }
+.franja-vercomo span { min-width: 0; overflow-wrap: anywhere; text-align: center; }
+body.con-franja { padding-bottom: 88px; }
+@media (max-width: 440px) { .franja-vercomo { padding: 8px 10px; font-size: 13px; } body.con-franja { padding-bottom: 132px; } .vercomo input { flex-basis: 100%; } }
+@media (pointer: coarse) { .vercomo input, .vercomo .boton, .franja-vercomo .boton { min-height: 44px; } }
+@media print { .vercomo { display: none; } .franja-vercomo { position: static; } }

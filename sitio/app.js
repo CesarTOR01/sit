@@ -26,7 +26,9 @@ import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, 
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
-import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph } from "./graph.js";
+import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph, leerTextoAcceso } from "./graph.js";
+import { hashCorreo } from "./acceso.js";
+import { identidadComo, textoFranja, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -47,6 +49,10 @@ const fuenteDe = t => (t && t.origen && hermanas.get(t.origen)) || fuente;
 let emblema = null;
 // los emblemas de todas las gerencias (sólo Administrador los lee, para el mapa de gerencias): { id: {claro, oscuro} | null }
 let emblemas = {};
+// "Ver como": sólo si la identidad REAL de quien entra es Administrador (adminReal, se decide al entrar). miVista guarda la
+// identidad real para volver a ella; vistaComo son las etiquetas de la vista simulada (null = la propia). Todo vive sólo en
+// memoria de la página: recargar vuelve a la vista propia.
+let adminReal = false, miVista = null, vistaComo = null, franja = null;
 
 /* ---------- tema ---------- */
 aplicarTema(temaGuardado());
@@ -173,7 +179,60 @@ async function revisarTablero() {
 }
 vigilancia = vigilar(revisarTablero, () => refrescoMin(tableroAbierto(), CONFIG.releerCadaMin));
 
-const portadaPortal = () => portadaView({ portal, tableros: visibles(portal.tableros), hrefDe, graph: !!(fuente && fuente.tipo === "graph"), gerencia, usuario, emblema, emblemas, accesoRoto });
+const portadaPortal = () => {
+  const p = portadaView({ portal, tableros: visibles(portal.tableros), hrefDe, graph: !!(fuente && fuente.tipo === "graph"), gerencia, usuario, emblema, emblemas, accesoRoto });
+  return adminReal && fuente && fuente.tipo === "graph" ? h("div", {}, controlVerComo(), p) : p;
+};
+
+/* ---------- "Ver como" (sólo Administrador) ---------- */
+// Presenta el menú y la portada como los vería otra persona del catálogo de acceso. Los archivos se siguen leyendo con la cuenta
+// de quien administra; los enlaces a ver.html abren con su identidad real. El correo se toma del campo, se borra del campo
+// enseguida y no se guarda, no se imprime ni sale en ningún aviso.
+function controlVerComo() {
+  const campo = h("input", { type: "email", id: "vercomo-correo", autocomplete: "off", spellcheck: "false", maxlength: "254", placeholder: "Correo de la persona", "aria-label": "Correo de la persona" });
+  const aviso = h("p", { class: "aviso warn", role: "status", hidden: true });
+  const ver = () => verComo(campo, aviso);
+  campo.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ver(); } });
+  return h("div", { class: "vercomo", role: "group", "aria-label": "Ver como otra persona" },
+    h("label", { for: "vercomo-correo" }, "Ver como…"), campo,
+    h("button", { class: "boton sec chico", type: "button", onclick: ver }, "Ver"), aviso);
+}
+
+async function verComo(campo, aviso) {
+  const correo = campo.value;
+  campo.value = "";
+  aviso.hidden = true;
+  const f = fuente;
+  if (!adminReal || !miVista || !f || f.tipo !== "graph") return;
+  const texto = await leerTextoAcceso(f);
+  const idn = texto === null ? null : await identidadComo(texto, correo, hashCorreo);
+  if (fuente !== f || !adminReal) return;
+  if (!idn) { aviso.textContent = texto === null ? AVISO_SIN_CATALOGO : AVISO_SIN_ENTRADA; aviso.hidden = false; return; }
+  vistaComo = idn.etiquetas;
+  gerencia = idn.gerencia; etiquetas = idn.etiquetas; accesoRoto = false;
+  extras = { admin: false, carpetas: idn.carpetas };
+  emblema = emblemas[gerencia.id] || null;
+  ponerFranja();
+  await conectar(f, CONFIG.catalogo);
+}
+
+async function volverAMiVista() {
+  if (!miVista) return;
+  ({ gerencia, etiquetas, accesoRoto, extras, emblema } = miVista);
+  vistaComo = null;
+  ponerFranja();
+  if (fuente) await conectar(fuente, CONFIG.catalogo);
+}
+
+// La franja fija se ve en el menú, la portada y los tableros mientras haya una vista simulada.
+function ponerFranja() {
+  document.body.classList.toggle("con-franja", !!vistaComo);
+  if (!vistaComo) { if (franja) { franja.remove(); franja = null; } return; }
+  if (!franja) { franja = h("div", { class: "franja-vercomo", role: "status" }); document.body.append(franja); }
+  franja.replaceChildren(h("span", {}, textoFranja(vistaComo)), h("button", { class: "boton sec chico", type: "button", onclick: volverAMiVista }, "Volver a mi vista"));
+}
+
+function olvidarVerComo() { adminReal = false; miVista = null; vistaComo = null; ponerFranja(); }
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 
@@ -278,6 +337,7 @@ async function conectarSesion() {
     $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión";
     return;
   }
+  olvidarVerComo();
   const p = await perfil().catch(() => ({}));
   usuario = p.nombre || ""; gerencia = gerenciaDe(p.departamento); etiquetas = null; accesoRoto = false; extras = null;
   // primera visita con enlace: se resuelve una vez, se guardan sólo drive y carpeta y el enlace se descarta
@@ -304,6 +364,8 @@ async function conectarSesion() {
   if (idn.entrada) extras = { admin: esAdministrador(etiquetas), carpetas: idn.carpetas };
   const admin = idn.entrada && esAdministrador(etiquetas);
   emblema = gerencia === GENERAL || admin ? null : await leerEmblemas(fuente, gerencia.id);
+  // "Ver como" sólo con la identidad real de Administrador (esAdministrador)
+  if (admin) { adminReal = true; miVista = { gerencia, etiquetas, accesoRoto, extras, emblema }; }
   await conectar(fuente, CONFIG.catalogo);
   // Administrador: los emblemas de todas las gerencias se leen aparte, sin retrasar la portada, y si sigue en ella se vuelve a pintar con los logos
   if (admin) {
@@ -319,12 +381,14 @@ async function conectarSesion() {
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
+  olvidarVerComo();
   fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
+  olvidarVerComo();
   fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });

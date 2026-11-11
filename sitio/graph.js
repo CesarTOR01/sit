@@ -199,6 +199,22 @@ export async function leerAcceso(f, llave) {
   }
 }
 
+// El texto del catálogo de acceso, para el "Ver como" de Administrador (vercomo.js). Se lee en línea con la cuenta de quien
+// administra cada vez que se pide (nunca de una copia) y no se guarda. null si no hay catálogo, es demasiado grande o no se
+// pudo leer. No lanza error nunca.
+export async function leerTextoAcceso(f) {
+  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, CONFIG.carpetaAcceso) : null;
+  if (!r || r.host !== f.host) return null;
+  const a = new FuenteSP(r.host, r.carpeta);
+  try {
+    const meta = await a.metadatos(CONFIG.acceso);
+    if (meta.bytes > MAX_BYTES) return null;
+    return new TextDecoder("utf-8").decode(await a.leer(CONFIG.acceso));
+  } catch (_) {
+    return null;
+  }
+}
+
 // Quién es la persona para decidir qué se le muestra, igual en el menú (index) y en los embebidos (ver): su entrada del catálogo de
 // acceso si la tiene; si no, el Departamento de su perfil `p`; si el catálogo existe y no sirve, sólo lo general. Nunca lanza error.
 //   { gerencia, etiquetas (null = por Departamento), accesoRoto, entrada (¿hay entrada en el catálogo?), carpetas }
