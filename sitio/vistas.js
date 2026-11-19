@@ -91,7 +91,7 @@ export function tarjetaTablero(t, hrefDe) {
     mk ? h("div", { class: "mini" },
       h("div", { class: "et" }, mk.etiqueta),
       h("div", { class: "mini-val" }, mk.valorTxt, mk.metaTxt ? h("span", { class: "mini-meta" }, " de " + mk.metaTxt) : null),
-      mk.barra !== null ? h("div", { class: "mini-barra " + mk.estado }, h("progress", { max: 1, value: mk.barra, "aria-label": "Cumplimiento: " + mk.pctTxt }), h("span", { class: "mini-pct " + mk.estado }, mk.pctTxt + " de cumplimiento")) : null) : null);
+      mk.barra !== null ? h("div", { class: "mini-barra " + mk.estado }, h("progress", { max: 1, value: mk.barra, "aria-label": mk.pctTxt + " " + mk.leyenda }), h("span", { class: "mini-pct " + mk.estado }, mk.pctTxt + " " + mk.leyenda)) : null) : null);
 }
 
 // Un tablero de datos: título, subtítulo, chips de fecha, sello y fuente, y sus bloques. Devuelve la lista de elementos.

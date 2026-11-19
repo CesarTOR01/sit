@@ -83,6 +83,22 @@ igual(miniKpi(K({ meta: "100" })), null, "meta en texto");
 igual(miniKpi(K({ meta: NaN })), null, "meta NaN");
 igual(JSON.stringify(miniKpi(K({ etiqueta: "<b>x</b>" }))).includes("<b>"), true, "una etiqueta con marcas pasa como texto (el DOM la pone con textContent)");
 
+/* ---- leyenda del porcentaje ---- */
+igual(miniKpi(K()).leyenda, "de cumplimiento", "por omisión la leyenda es 'de cumplimiento'");
+igual(miniKpi(K({ leyenda: "del mismo periodo de 2025" })).leyenda, "del mismo periodo de 2025", "leyenda propia (comparación contra el año anterior)");
+igual(miniKpi(K({ leyenda: "  con espacios  " })).leyenda, "con espacios", "la leyenda se recorta");
+igual(miniKpi(K({ leyenda: "a".repeat(32) })).leyenda, "a".repeat(32), "leyenda de 32 caracteres vale");
+igual(miniKpi(K({ leyenda: "a".repeat(33) })).leyenda, "de cumplimiento", "leyenda de 33 caracteres: se vuelve a la de omisión");
+igual(miniKpi(K({ leyenda: "<b>x</b>" })).leyenda, "de cumplimiento", "leyenda con marcas: se ignora");
+igual(miniKpi(K({ leyenda: "uno\ndos" })).leyenda, "de cumplimiento", "leyenda con salto de línea: se ignora");
+igual(miniKpi(K({ leyenda: 5 })).leyenda, "de cumplimiento", "leyenda numérica: se ignora");
+igual(miniKpi(K({ leyenda: "" })).leyenda, "de cumplimiento", "leyenda vacía: se ignora");
+igual(miniKpi(K({ valor: null, leyenda: "del año anterior" })).leyenda, "del año anterior", "con valor null también conserva la leyenda");
+{
+  const m = miniKpi({ etiqueta: "Venta neta 2026 vs 2025 · ene–oct", valor: 316960764.59, meta: 337238196.75, formato: "moneda_abrev", leyenda: "del mismo periodo de 2025" });
+  igual([m.valorTxt, m.metaTxt, m.pctTxt, m.estado], ["$317.0 M", "$337.2 M", "94%", "warn"], "el caso de ventas 2026 contra 2025: 94 % (warn)");
+}
+
 /* ---- estáticas ---- */
 {
   const vistas = leer("../sitio/vistas.js"), css = leer("../sitio/estilo.css"), mini = leer("../sitio/mini.js");
@@ -94,6 +110,7 @@ igual(JSON.stringify(miniKpi(K({ etiqueta: "<b>x</b>" }))).includes("<b>"), true
   igual(/\.mini-barra progress/.test(css) && /\.mini-pct\.bad/.test(css) && /\.tarjeta-tablero \.actualizado/.test(css), true, "estilo.css: barra, porcentaje por estado y fecha de la tarjeta");
   igual(/localStorage|sessionStorage|fetch\(/.test(mini), false, "mini.js no guarda ni envía nada");
   igual(/Actualizado "/.test(t) && /Fecha de actualización desconocida/.test(t), true, "texto de fecha y su aviso cuando no hay fecha");
+  igual(/mk\.pctTxt \+ " " \+ mk\.leyenda/.test(t), true, "el porcentaje lleva la leyenda del kpi");
 }
 
 console.log("mini: " + ok + " de " + (ok + mal) + " pruebas bien");
