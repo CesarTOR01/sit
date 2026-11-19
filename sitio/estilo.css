@@ -144,6 +144,26 @@ i.linea { width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; 
 .relleno { padding: 8px; }
 .kpi.enlace { text-decoration: none; color: inherit; display: block; }
 .kpi .val.chico { font-size: 18px; }
+/* tarjeta de un tablero en la portada: nombre, cuándo se actualizó y un mini indicador con su avance */
+.tarjeta-tablero .val.chico { font-size: 20px; font-weight: 700; }
+.tarjeta-tablero .actualizado { font-size: 13px; color: var(--tinta2); margin-top: 2px; }
+.portada-tarjetas { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.tarjeta-tablero { display: flex; flex-direction: column; }
+.tarjeta-tablero .mini { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--linea); }
+.tarjeta-tablero .actualizado { margin-bottom: 12px; }
+.tarjeta-tablero .mini .et { font-size: 13px; font-weight: 500; color: var(--tinta2); }
+.mini-val { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; margin: 2px 0 6px; }
+.mini-meta { font-size: 14px; font-weight: 500; color: var(--tinta2); white-space: nowrap; }
+.mini-barra { display: flex; flex-direction: column; gap: 4px; }
+.mini-barra progress { width: 100%; height: 8px; border: 0; border-radius: 4px; background: var(--linea); appearance: none; overflow: hidden; }
+.mini-barra progress::-webkit-progress-bar { background: var(--linea); border-radius: 4px; }
+.mini-barra progress::-webkit-progress-value { background: var(--na); border-radius: 4px; }
+.mini-barra progress::-moz-progress-bar { background: var(--na); border-radius: 4px; }
+.mini-barra.ok progress::-webkit-progress-value { background: var(--ok); } .mini-barra.ok progress::-moz-progress-bar { background: var(--ok); }
+.mini-barra.warn progress::-webkit-progress-value { background: var(--warn); } .mini-barra.warn progress::-moz-progress-bar { background: var(--warn); }
+.mini-barra.bad progress::-webkit-progress-value { background: var(--bad); } .mini-barra.bad progress::-moz-progress-bar { background: var(--bad); }
+.mini-pct { font-size: 13px; font-weight: 600; color: var(--tinta2); }
+.mini-pct.ok { color: var(--ok); } .mini-pct.warn { color: var(--warn); } .mini-pct.bad { color: var(--bad); }
 .pie-pagina { text-align: center; color: var(--tinta2); font-size: 12px; padding: 8px 16px 24px; }
 code { font-family: var(--mono); font-size: 12px; }
 

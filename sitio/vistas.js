@@ -4,6 +4,7 @@ import { h } from "./comun.js";
 import { iconoClave, claveGerencia } from "./iconos.js";
 import { heroGerencia, emblemaImg, repartoPorGerencia, GENERAL } from "./gerencias.js";
 import { pintarBloques } from "./bloques.js";
+import { miniKpi } from "./mini.js";
 
 // Pasadas más de estas horas desde la última publicación, la marca de frescura se pone en ámbar.
 export const VIGENCIA_H = 36;
@@ -74,12 +75,23 @@ export function portadaView({ portal, tableros, hrefDe, graph, gerencia, usuario
     graph && accesoRoto ? h("div", { class: "aviso warn", role: "status" }, "No se pudo leer tu acceso; por ahora sólo se muestran los tableros generales.") : null,
     graph ? h("h3", { class: "tus-tableros" }, admin ? "Todas las gerencias" : "Tus tableros") : null,
     h("div", { class: "fila-chips" }, h("span", { class: "chip " + (edad.horas > VIGENCIA_H ? "warn" : "ok") }, "Publicado " + edad.txt), h("span", { class: "chip" }, tableros.length + (tableros.length === 1 ? " tablero" : " tableros"))),
-    admin ? mapaGerencias(tableros, hrefDe, emblemas) : tableros.length ? h("div", { class: "kpis" }, tableros.map(t => {
-      const m = t.meta && t.meta.modificado ? hace(t.meta.modificado) : null;
-      return h("a", { class: "kpi enlace", href: hrefDe(t) },
-        h("div", { class: "et" }, t.grupo || "Tableros"), h("div", { class: "val chico" }, t.titulo),
-        h("div", { class: "pie" }, t.descripcion ? h("span", {}, t.descripcion) : null, m ? h("span", {}, "Archivo actualizado " + m.txt) : null));
-    })) : h("div", { class: "aviso warn" }, "Todavía no hay tableros disponibles para tu cuenta."));
+    admin ? mapaGerencias(tableros, hrefDe, emblemas) : tableros.length ? h("div", { class: "kpis portada-tarjetas" }, tableros.map(t => tarjetaTablero(t, hrefDe))) : h("div", { class: "aviso warn" }, "Todavía no hay tableros disponibles para tu cuenta."));
+}
+
+// Tarjeta de un tablero en la portada: su nombre, cuándo se actualizó (fecha y hora locales) y, si el renglón del catálogo trae `kpi`,
+// un mini indicador con el valor, la meta y el porcentaje de cumplimiento. La fecha sale de `actualizado` del renglón o, sin ella,
+// de la fecha del archivo (`meta.modificado`).
+export function tarjetaTablero(t, hrefDe) {
+  const iso = typeof t.actualizado === "string" ? t.actualizado : t.meta && t.meta.modificado ? t.meta.modificado : null;
+  const cuando = iso ? fechaHora(iso) : null;
+  const mk = miniKpi(t.kpi);
+  return h("a", { class: "kpi enlace tarjeta-tablero", href: hrefDe(t) },
+    h("div", { class: "val chico" }, t.titulo),
+    h("div", { class: "actualizado" }, cuando ? "Actualizado " + cuando : "Fecha de actualización desconocida"),
+    mk ? h("div", { class: "mini" },
+      h("div", { class: "et" }, mk.etiqueta),
+      h("div", { class: "mini-val" }, mk.valorTxt, mk.metaTxt ? h("span", { class: "mini-meta" }, " de " + mk.metaTxt) : null),
+      mk.barra !== null ? h("div", { class: "mini-barra " + mk.estado }, h("progress", { max: 1, value: mk.barra, "aria-label": "Cumplimiento: " + mk.pctTxt }), h("span", { class: "mini-pct " + mk.estado }, mk.pctTxt + " de cumplimiento")) : null) : null);
 }
 
 // Un tablero de datos: título, subtítulo, chips de fecha, sello y fuente, y sus bloques. Devuelve la lista de elementos.

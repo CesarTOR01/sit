@@ -4,6 +4,8 @@
 //   catálogo      { contrato:"visor/1", titulo, subtitulo?, generado, tableros:[{ id, titulo, grupo?, audiencias?:[etiqueta], descripcion?, tipo?:"datos"|"embebido", archivo, sha256?, bytes?, refresco_min? }] }
 //                 refresco_min: cada cuántos minutos se revisa este tablero mientras está abierto y visible (1 a 1440; por omisión CONFIG.releerCadaMin)
 //                 (en la organización se llama como CONFIG.catalogo; en una carpeta local, portal.json; `archivo` es relativo a su carpeta)
+//                 en la portada la tarjeta muestra el nombre, `actualizado` (fecha y hora ISO de la última publicación; sin ella, la fecha del archivo)
+//                 y, si trae `kpi`: { etiqueta, valor|null, meta?, formato, sentido?:"mayor"|"menor", estado? } un mini indicador con su porcentaje de cumplimiento (mini.js)
 //   tablero datos { contrato:"visor/1", id, titulo, subtitulo?, generado, fuente?, bloques:[ … ] }
 //   tablero embebido: un HTML completo sin red, que se muestra en un marco aislado (ver.html); si está en una carpeta hermana, ver.html lo abre con ?o=<carpeta>
 //                 puede guardarse comprimido: { archivo:"x.html.gz", compresion:"gzip", sha256, bytes (del .gz), bytes_descomprimidos (1 a 64 MB), sha256_descomprimido? } (compresion.js)
