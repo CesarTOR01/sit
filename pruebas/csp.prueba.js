@@ -45,7 +45,7 @@ igual(/sandbox="allow-scripts"/.test(marcoInterno) && !/allow-same-origin|allow-
 igual(/addEventListener\("message"/.test(js), false, "ver.js: no escucha mensajes del marco");
 igual(/aMarco\(\{ sit: "tablero", html: pendiente \}\)/.test(js), true, "ver.js: al marco le manda {sit, html}");
 igual(/\.srcdoc\b/.test(js), false, "ver.js: ya no usa srcdoc (heredaría la política de esta página)");
-const i = js.indexOf("await cargarConSello("), k = js.indexOf('if (r.estado !== "ok")'), j = js.indexOf("mostrar(aTexto(buf))");
+const i = js.indexOf("await cargarConSello("), k = js.indexOf('if (r.estado !== "ok")'), j = js.indexOf("mostrar(html);"); // lo que se muestra pasó por el sello y, si venía comprimido, por descomprimir
 igual(i > 0 && k > i && j > k, true, "ver.js: el sello se comprueba (cargarConSello) antes de mandar el tablero");
 igual(/innerHTML|insertAdjacentHTML|document\.write|\beval\(/.test(js), false, "ver.js: sin HTML crudo ni eval");
 

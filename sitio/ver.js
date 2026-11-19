@@ -12,6 +12,7 @@ import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTema } from "./tema.js";
 import { enlacesValidos } from "./enlaces.js";
 import { cargarConSello } from "./cargainicial.js";
+import { planDeCompresion, descomprimir, MENSAJES } from "./compresion.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
@@ -75,6 +76,8 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
     let t = buscarTablero(cat);
     if (!t) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
+    const plan0 = planDeCompresion(t); // antes de bajar nada: un renglón con compresión que el sitio no acepta no se descarga
+    if (!plan0.ok) { aviso(MENSAJES[plan0.motivo] || MENSAJES.compresion); return; }
     $("titulo").textContent = t.titulo || "SIT";
     document.title = (t.titulo || "Tablero") + " · SIT";
     pintarEnlaces(t);
@@ -100,7 +103,15 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     // si un reintento trajo otro renglón (otro archivo o refresco), la relectura sigue ese renglón y sus enlaces
     if (r.t && r.t !== t) { if (r.t.archivo !== t.archivo) meta = await origen.metadatos(r.t.archivo).catch(() => null); t = r.t; pintarEnlaces(t); }
 
-    mostrar(aTexto(buf));
+    // si el archivo está guardado comprimido (gzip), aquí se descomprime con el tamaño y el sello que declara su renglón
+    const planT = planDeCompresion(t);
+    if (!planT.ok) { aviso(MENSAJES[planT.motivo] || MENSAJES.compresion); return; }
+    let html;
+    try {
+      if (planT.comprimido) { texto.textContent = "Preparando el tablero…"; barra.removeAttribute("value"); }
+      html = aTexto(await descomprimir(buf, t, { sha256 }));
+    } catch (e) { aviso(e && e.message ? e.message : "No se pudo preparar el tablero."); return; }
+    mostrar(html);
     // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible; cada `refresco_min` minutos
     // del catálogo (o el valor por omisión). Si falla se avisa y se reintenta con espera creciente.
     let minutos = refrescoMin(t, CONFIG.releerCadaMin);
@@ -114,9 +125,11 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
           if (!t2) throw new Error("el tablero ya no está en el catálogo");
           const b2 = await origen.leer(t2.archivo);
           if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) throw new Error("a medio sincronizar");
+          if (!planDeCompresion(t2).ok) throw new Error("compresión no admitida");
+          const html2 = aTexto(await descomprimir(b2, t2, { sha256 }));
           meta = ahora; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
           pintarEnlaces(t2);
-          mostrar(aTexto(b2));
+          mostrar(html2);
         }
         $("aviso-relectura").hidden = true;
         return true;

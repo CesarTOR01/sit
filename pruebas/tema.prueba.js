@@ -52,7 +52,7 @@ igual(/const avisarTema = \(\) => aMarco\(mensajeTema\(temaActual\(\)\)\)/.test(
 igual(/\$\("tema"\)\.addEventListener\("click", \(\) => \{ alternarTema\(\); avisarTema\(\); \}\)/.test(ver) && /marco\.addEventListener\("load", \(\) => \{ marcoListo = true; enviar\(\); \}\)/.test(ver), true, "ver.js: avisa el tema al cargar el marco y al cambiarlo");
 igual(/addEventListener\("message"/.test(ver), false, "ver.js: no escucha nada del marco");
 igual(/\beval\(|new Function|innerHTML|insertAdjacentHTML|document\.write/.test(ver + fuenteTema), false, "ver.js y tema.js: ni eval ni HTML crudo");
-const i = ver.indexOf("await cargarConSello("), k = ver.indexOf('if (r.estado !== "ok")'), j = ver.indexOf("mostrar(aTexto(buf))");
+const i = ver.indexOf("await cargarConSello("), k = ver.indexOf('if (r.estado !== "ok")'), j = ver.indexOf("mostrar(html);"); // lo que se muestra pasó por el sello y, si venía comprimido, por descomprimir
 igual(i > 0 && k > i && j > k, true, "ver.js: el sello se comprueba antes de poner el tema");
 igual(/const corte = .*snapshotBD/.test(ver) && ver.indexOf("conTema(html") > ver.indexOf("snapshotBD"), true, "ver.js: el corte y la versión se leen del texto original");
 igual(/<button[^>]*id="tema"[^>]*aria-label=/.test(verHtml), true, "ver.html: botón Tema con su etiqueta");

@@ -6,6 +6,7 @@
 //                 (en la organización se llama como CONFIG.catalogo; en una carpeta local, portal.json; `archivo` es relativo a su carpeta)
 //   tablero datos { contrato:"visor/1", id, titulo, subtitulo?, generado, fuente?, bloques:[ … ] }
 //   tablero embebido: un HTML completo sin red, que se muestra en un marco aislado (ver.html); si está en una carpeta hermana, ver.html lo abre con ?o=<carpeta>
+//                 puede guardarse comprimido: { archivo:"x.html.gz", compresion:"gzip", sha256, bytes (del .gz), bytes_descomprimidos (1 a 64 MB), sha256_descomprimido? } (compresion.js)
 // Bloques:
 //   kpis   { tipo, titulo?, texto?, total?:{etiqueta, valor, formato, unidad?, franjas:[{hasta, estado, etiqueta?}]},
 //            items:[{ etiqueta, valor|null, formato, unidad?, meta?, aceptable?, sentido?:"mayor"|"menor", estado?,
