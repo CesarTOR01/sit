@@ -4,6 +4,7 @@
 //   sit-acceso.json  { contrato:"acceso/1", generado?, personas:{ "<sha256 del correo en minúsculas>": ["Etiqueta", …] },
 //                      carpetas?:{ "<Etiqueta>": ["carpeta_hermana", …] } }
 //   La etiqueta Administrador lee todas las carpetas hermanas con catálogo; las demás, sólo las que nombra `carpetas`.
+//   Opcional: `rotulos:{ "<sha256>": "Puesto" }` para la lista de "Ver como" (sólo el puesto, nunca el nombre ni el correo).
 //
 // La llave es el hash del correo, calculado aquí con el perfil de la propia persona; el correo no se guarda, no se imprime y
 // no sale de esta función. La ruta del catálogo no sale de ningún archivo: es la carpeta hermana `acceso` de la carpeta del enlace.
@@ -51,6 +52,30 @@ function carpetasDe(carpetas, etiquetas) {
     for (const n of lista) {
       if (typeof n === "string" && NOMBRE_CARPETA.test(n) && !CARPETAS_RESERVADAS.includes(n.toLowerCase()) && !salida.includes(n) && salida.length < MAX_CARPETAS) salida.push(n);
     }
+  }
+  return salida;
+}
+
+// Rótulos para "Ver como" (campo opcional `rotulos: { "<sha256 del correo>": "Texto corto" }`): sólo el rol o puesto, nunca el nombre
+// de la persona ni su correo. Un rótulo mal formado se ignora. Sólo sirven para rotular la lista de "Ver como": no deciden acceso.
+export const MAX_ROTULO = 40, MAX_LISTA = 200;
+const ROTULO = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9][A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 .,()\/-]{0,39}$/;
+const LLAVE = /^[0-9a-f]{64}$/;
+
+// Las personas del catálogo, para listarlas: [{ llave, etiquetas, rotulo|null }] en el orden del archivo, sin repetir y con tope.
+// Una entrada mal formada se salta sin afectar a las demás. Archivo ilegible: [].
+export function listarPersonas(texto) {
+  if (typeof texto !== "string" || texto.length > MAX_BYTES) return [];
+  let datos;
+  try { datos = JSON.parse(texto); } catch (_) { return []; }
+  if (!esObjeto(datos) || datos.contrato !== "acceso/1" || !esObjeto(datos.personas)) return [];
+  const rotulos = esObjeto(datos.rotulos) ? datos.rotulos : {};
+  const salida = [];
+  for (const [llave, v] of Object.entries(datos.personas)) {
+    if (salida.length >= MAX_LISTA) break;
+    if (!LLAVE.test(llave) || !Array.isArray(v) || !v.length || v.length > MAX_ETIQUETAS || !v.every(esEtiqueta)) continue;
+    const r = Object.prototype.hasOwnProperty.call(rotulos, llave) ? rotulos[llave] : null;
+    salida.push({ llave, etiquetas: v.map(e => e.trim()), rotulo: typeof r === "string" && ROTULO.test(r.trim()) ? r.trim() : null });
   }
   return salida;
 }

@@ -131,9 +131,9 @@ igual(/const admin = idn\.entrada && esAdministrador\(etiquetas\);/.test(app) &&
 igual((app.match(/adminReal = true/g) || []).length, 1, "app.js: adminReal se enciende en un solo lugar");
 igual((app.match(/controlVerComo\(\)/g) || []).length === 2 && /adminReal && fuente && fuente\.tipo === "graph" \? h\("div", \{\}, controlVerComo\(\), p\) : p/.test(app), true, "app.js: el control sólo se pinta si adminReal (una definición, un uso)");
 const iVer = app.indexOf("async function verComo("), cuerpo = app.slice(iVer, app.indexOf("async function volverAMiVista("));
-igual(iVer > 0 && cuerpo.indexOf('campo.value = "";') > 0 && cuerpo.indexOf('campo.value = "";') < cuerpo.indexOf("await "), true, "app.js: el campo del correo se borra antes de leer nada");
+igual(iVer > 0 && cuerpo.indexOf('lista.value = "";') > 0 && cuerpo.indexOf('lista.value = "";') < cuerpo.indexOf("await "), true, "app.js: la elección de la lista se limpia antes de leer nada");
 igual(/aviso\.textContent = texto === null \? AVISO_SIN_CATALOGO : AVISO_SIN_ENTRADA;/.test(cuerpo) && !/correo\s*\+|\+\s*correo/.test(cuerpo), true, "app.js: el aviso es un texto fijo, sin el correo");
-igual(/if \(!adminReal \|\| !miVista/.test(cuerpo) && /extras = \{ admin: false, carpetas: idn\.carpetas \}/.test(cuerpo), true, "app.js: la vista simulada no es de Administrador y lee sólo las carpetas de la persona");
+igual(/!adminReal \|\| !miVista/.test(cuerpo) && /extras = \{ admin: false, carpetas: idn\.carpetas \}/.test(cuerpo), true, "app.js: la vista simulada no es de Administrador y lee sólo las carpetas de la persona");
 const seccion = app.slice(app.indexOf('/* ---------- "Ver como"'),app.indexOf("function olvidarVerComo"));
 igual(seccion.length > 500 && !/localStorage|sessionStorage|\bhistory\.|\blocation\.|innerHTML|insertAdjacentHTML|console\./.test(seccion), true, "app.js: Ver como no usa almacenamiento, dirección, historial, consola ni HTML crudo");
 igual([(app.match(/localStorage|sessionStorage/g) || []).length, (app.match(/innerHTML|insertAdjacentHTML/g) || []).length, (app.match(/\bhistory\./g) || []).length], [0, 0, 3], "app.js: sin almacenamiento ni HTML crudo; el historial, igual que antes (3 usos)");

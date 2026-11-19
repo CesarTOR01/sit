@@ -28,8 +28,7 @@ import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
 import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph, leerTextoAcceso } from "./graph.js";
-import { hashCorreo } from "./acceso.js";
-import { identidadComo, textoFranja, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
+import { identidadPorLlave, opcionesVerComo, textoFranja, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -187,26 +186,40 @@ const portadaPortal = () => {
 
 /* ---------- "Ver como" (sólo Administrador) ---------- */
 // Presenta el menú y la portada como los vería otra persona del catálogo de acceso. Los archivos se siguen leyendo con la cuenta
-// de quien administra; los enlaces a ver.html abren con su identidad real. El correo se toma del campo, se borra del campo
-// enseguida y no se guarda, no se imprime ni sale en ningún aviso.
+// de quien administra; los enlaces a ver.html abren con su identidad real. Ya no se escribe ningún correo: se elige de una lista.
+// La lista de personas se arma con el catálogo de acceso (sólo hashes, etiquetas y el puesto si lo trae); se lee una vez por carpeta
+// mientras dura la página y no se guarda. Al elegir, el catálogo se vuelve a leer en línea para decidir la vista.
+let listaVC = null, listaVCDe = null;
 function controlVerComo() {
-  const campo = h("input", { type: "email", id: "vercomo-correo", autocomplete: "off", spellcheck: "false", maxlength: "254", placeholder: "Correo de la persona", "aria-label": "Correo de la persona" });
+  const lista = h("select", { id: "vercomo-persona", "aria-label": "Persona a la que ver" }, h("option", { value: "" }, "Cargando…"));
   const aviso = h("p", { class: "aviso warn", role: "status", hidden: true });
-  const ver = () => verComo(campo, aviso);
-  campo.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ver(); } });
+  const boton = h("button", { class: "boton sec chico", type: "button", disabled: true }, "Ver");
+  lista.disabled = true;
+  const llenar = (ops, hayCatalogo) => {
+    lista.replaceChildren(h("option", { value: "" }, ops.length ? "Elige una persona…" : "Sin personas en el catálogo"), ...ops.map((o, i) => h("option", { value: String(i) }, o.texto)));
+    lista.disabled = boton.disabled = !ops.length;
+    if (!hayCatalogo) { aviso.textContent = AVISO_SIN_CATALOGO; aviso.hidden = false; }
+  };
+  const f = fuente;
+  if (listaVC && listaVCDe === f) llenar(listaVC, true);
+  else leerTextoAcceso(f).then(texto => {
+    if (fuente !== f) return;
+    listaVC = texto === null ? [] : opcionesVerComo(texto); listaVCDe = f;
+    llenar(listaVC, texto !== null);
+  });
+  boton.addEventListener("click", () => verComo(lista, aviso));
   return h("div", { class: "vercomo", role: "group", "aria-label": "Ver como otra persona" },
-    h("label", { for: "vercomo-correo" }, "Ver como…"), campo,
-    h("button", { class: "boton sec chico", type: "button", onclick: ver }, "Ver"), aviso);
+    h("label", { for: "vercomo-persona" }, "Ver como…"), lista, boton, aviso);
 }
 
-async function verComo(campo, aviso) {
-  const correo = campo.value;
-  campo.value = "";
+async function verComo(lista, aviso) {
+  const elegida = listaVC && lista.value !== "" ? listaVC[Number(lista.value)] : null;
+  lista.value = "";
   aviso.hidden = true;
   const f = fuente;
-  if (!adminReal || !miVista || !f || f.tipo !== "graph") return;
+  if (!elegida || !adminReal || !miVista || !f || f.tipo !== "graph") return;
   const texto = await leerTextoAcceso(f);
-  const idn = texto === null ? null : await identidadComo(texto, correo, hashCorreo);
+  const idn = texto === null ? null : identidadPorLlave(texto, elegida.llave);
   if (fuente !== f || !adminReal) return;
   if (!idn) { aviso.textContent = texto === null ? AVISO_SIN_CATALOGO : AVISO_SIN_ENTRADA; aviso.hidden = false; return; }
   vistaComo = idn.etiquetas;
@@ -233,7 +246,7 @@ function ponerFranja() {
   franja.replaceChildren(h("span", {}, textoFranja(vistaComo)), h("button", { class: "boton sec chico", type: "button", onclick: volverAMiVista }, "Volver a mi vista"));
 }
 
-function olvidarVerComo() { adminReal = false; miVista = null; vistaComo = null; ponerFranja(); }
+function olvidarVerComo() { adminReal = false; miVista = null; vistaComo = null; listaVC = null; listaVCDe = null; ponerFranja(); }
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 

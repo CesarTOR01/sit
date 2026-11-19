@@ -3,7 +3,7 @@
 // así que esto no dice qué puede abrir la otra persona.
 // El correo se usa para calcular su llave y se descarta: no se guarda, no se imprime y no sale en el resultado.
 // Módulo sin DOM, red ni almacenamiento, para poder probarlo aparte.
-import { interpretarAcceso } from "./acceso.js";
+import { interpretarAcceso, listarPersonas } from "./acceso.js";
 import { gerenciaDeEtiquetas, esAdministrador } from "./gerencias.js";
 
 export const MAX_CORREO = 254;
@@ -35,6 +35,28 @@ export async function identidadComo(textoAcceso, correo, hashCorreo) {
   } catch (_) {
     return null;
   }
+}
+
+// Lo mismo, pero con la llave de una persona de la lista (sin correo de por medio). null si la llave no es de una persona del
+// catálogo, si no tiene entrada o si es Administrador. Nunca lanza.
+export function identidadPorLlave(textoAcceso, llave) {
+  try {
+    if (typeof llave !== "string" || !/^[0-9a-f]{64}$/.test(llave)) return null;
+    const a = interpretarAcceso(textoAcceso, llave);
+    if (a.estado !== "entrada" || esAdministrador(a.etiquetas)) return null;
+    return { etiquetas: [...a.etiquetas], carpetas: [...(a.carpetas || [])], gerencia: gerenciaDeEtiquetas(a.etiquetas) };
+  } catch (_) {
+    return null;
+  }
+}
+
+// La lista desplegable de "Ver como": las personas del catálogo que no son Administrador, con su rótulo (el puesto, si el archivo lo
+// trae) y sus etiquetas. Devuelve [{ llave, texto }] ordenada por texto. Sin rótulo se lee "Sin rótulo" y sus etiquetas entre paréntesis.
+export function opcionesVerComo(textoAcceso) {
+  const lista = listarPersonas(textoAcceso).filter(p => !esAdministrador(p.etiquetas));
+  return lista
+    .map(p => ({ llave: p.llave, texto: (p.rotulo || "Sin rótulo") + " (" + p.etiquetas.join(", ") + ")" }))
+    .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
 }
 
 // Texto de la franja fija mientras hay una vista simulada.
