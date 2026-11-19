@@ -13,11 +13,17 @@ import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTe
 import { enlacesValidos } from "./enlaces.js";
 import { cargarConSello } from "./cargainicial.js";
 import { planDeCompresion, descomprimir, MENSAJES } from "./compresion.js";
+import { resumenTiempos } from "./tiempos.js";
 
 const $ = id => document.getElementById(id);
 const estado = (...hijos) => { $("estado").hidden = false; $("estado").replaceChildren(...hijos); };
 const aviso = (txt, clase = "bad") => estado(h("div", { class: "aviso " + clase, role: "alert" }, txt), h("p", {}, h("a", { href: "index.html" }, "Volver a los tableros")));
 const mb = n => (n / 1048576).toFixed(1) + " MB";
+
+// Marcas de tiempo (ms desde que abrió la página) para ver en qué etapa se va el tiempo; se muestran al terminar la primera carga.
+const marcas = [];
+const marca = nombre => marcas.push([nombre, Math.round(performance.now())]);
+let tiempoMostrado = false;
 
 aplicarTema(temaGuardado());
 
@@ -52,7 +58,10 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     $("salir").hidden = false;
     yo().then(n => { if (n) $("sub").textContent = "Sesión de " + n; }).catch(() => {});
     // sólo los tableros que le tocan a la persona (su entrada del catálogo de acceso o, sin ella, su Departamento): los demás no se abren desde aquí
-    const idn = await identidad(fuente, await perfil().catch(() => ({})));
+    const p = await perfil().catch(() => ({}));
+    marca("perfil");
+    const idn = await identidad(fuente, p);
+    marca("acceso");
     // `o`: el tablero está en una carpeta hermana de la del enlace; sólo se abre si a la persona le toca esa carpeta (Administrador: cualquiera; otra etiqueta: las de su lista)
     let origen = fuente;
     const o = new URLSearchParams(location.search).get("o");
@@ -74,6 +83,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     let cat;
     try { cat = await leerCat(); }
     catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
+    marca("catálogo");
     let t = buscarTablero(cat);
     if (!t) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     const plan0 = planDeCompresion(t); // antes de bajar nada: un renglón con compresión que el sitio no acepta no se descarga
@@ -83,6 +93,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     pintarEnlaces(t);
 
     let meta = await origen.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
+    marca("metadatos");
     const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
     estado(texto, barra);
     // si el sello no cuadra (catálogo y archivo a medio publicar) se espera y se releen los dos: cada 30 s, hasta 10 veces
@@ -99,6 +110,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     });
     if (r.estado === "no_existe") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
     if (r.estado !== "ok") { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
+    marca("archivo");
     const buf = r.buf;
     // si un reintento trajo otro renglón (otro archivo o refresco), la relectura sigue ese renglón y sus enlaces
     if (r.t && r.t !== t) { if (r.t.archivo !== t.archivo) meta = await origen.metadatos(r.t.archivo).catch(() => null); t = r.t; pintarEnlaces(t); }
@@ -110,6 +122,7 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
     try {
       if (planT.comprimido) { texto.textContent = "Preparando el tablero…"; barra.removeAttribute("value"); }
       html = aTexto(await descomprimir(buf, t, { sha256 }));
+      if (planT.comprimido) marca("descomprimido");
     } catch (e) { aviso(e && e.message ? e.message : "No se pudo preparar el tablero."); return; }
     mostrar(html);
     // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible; cada `refresco_min` minutos
@@ -149,6 +162,11 @@ function pintarEnlaces(tablero) {
 
 // Pone el HTML del tablero en el marco aislado y lee de su texto el corte y la versión (el marco no deja leerlos desde aquí).
 function mostrar(html) {
+  if (!tiempoMostrado) {
+    tiempoMostrado = true; marca("listo");
+    const r = resumenTiempos(marcas);
+    if (r) { $("tiempo").textContent = r.texto; $("tiempo").title = r.detalle; $("tiempo").hidden = false; }
+  }
   const i = html.indexOf('"snapshotBD":"');
   const corte = i >= 0 ? /^"snapshotBD":"(\d{4}-\d{2}-\d{2})"/.exec(html.slice(i, i + 40)) : null;
   if (corte) { $("corte").textContent = "Corte " + fechaCorta(corte[1]); $("corte").hidden = false; }

@@ -239,7 +239,7 @@ const iRoto = await quien(() => ({ estado: 403 }), { llave: esperado, departamen
 igual([iRoto.gerencia === GENERAL, iRoto.etiquetas, iRoto.accesoRoto], [true, ["General"], true], "identidad: catálogo ilegible, sólo lo general y aviso");
 igual((await quien(() => ({ estado: 404 }), undefined)).gerencia === GENERAL, true, "identidad: sin perfil queda general");
 const veriSrc = readFileSync(new URL("../sitio/ver.js", import.meta.url), "utf8");
-igual(/identidad\(fuente, await perfil\(\)/.test(veriSrc) && /visiblesParaGerencia\([\s\S]*?idn\.gerencia, idn\.etiquetas\)/.test(veriSrc), true, "ver.js decide con la identidad del catálogo de acceso, no sólo con el Departamento");
+igual(/const p = await perfil\(\)[^;]*;[\s\S]*?identidad\(fuente, p\)/.test(veriSrc) && /visiblesParaGerencia\([\s\S]*?idn\.gerencia, idn\.etiquetas\)/.test(veriSrc), true, "ver.js decide con la identidad del catálogo de acceso, no sólo con el Departamento");
 igual(/gerenciaDe\(/.test(veriSrc), false, "ver.js ya no decide sólo por Departamento");
 
 /* ---- carpetas hermanas: enumerar y abrir ---- */
