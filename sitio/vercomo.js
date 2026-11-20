@@ -59,6 +59,15 @@ export function opcionesVerComo(textoAcceso) {
     .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
 }
 
+// En "Ver como" el catálogo de la carpeta del enlace es el de quien administra, no el de la otra persona. Sus tableros (los que no
+// traen `origen`) sólo se conservan si esa carpeta (`propia`) está en la lista de la persona; los de las hermanas ya vienen de su lista.
+export function tablerosDeSuLista(tableros, carpetas, propia) {
+  const lista = Array.isArray(tableros) ? tableros : [];
+  const suyas = (Array.isArray(carpetas) ? carpetas : []).filter(n => typeof n === "string").map(n => n.toLowerCase());
+  const dentro = typeof propia === "string" && suyas.includes(propia.toLowerCase());
+  return lista.filter(t => t && typeof t === "object" && (typeof t.origen === "string" || dentro));
+}
+
 // Texto de la franja fija mientras hay una vista simulada.
 export const textoFranja = etiquetas =>
   "Vista como una persona del catálogo (etiquetas: " + (etiquetas || []).join(", ") + ") · sólo presentación; el permiso real es el de SharePoint";

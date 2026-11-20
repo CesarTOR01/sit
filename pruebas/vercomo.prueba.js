@@ -2,7 +2,7 @@
 // Usa correos inventados del dominio reservado .test y un servidor simulado de SharePoint.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { identidadComo, esCorreo, textoFranja, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
+import { identidadComo, esCorreo, textoFranja, tablerosDeSuLista, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
 import { hashCorreo, MAX_BYTES } from "../sitio/acceso.js";
 import { visiblesParaGerencia, GENERAL } from "../sitio/gerencias.js";
 import { carpetasALeer } from "../sitio/catalogos.js";
@@ -149,6 +149,24 @@ const css = leer("../sitio/estilo.css");
 const reglasVc = css.split("}").filter(r => /vercomo|con-franja/.test(r));
 igual(reglasVc.length >= 6 && reglasVc.every(r => !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(r)), true, "estilo.css: el control y la franja usan sólo los tokens del tema (claro y oscuro)");
 igual(/\.franja-vercomo \{[^}]*position: fixed/.test(css) && /@media \(max-width: 440px\) \{[^\n]*\.franja-vercomo/.test(css), true, "estilo.css: franja fija, ajustada en pantallas angostas");
+
+/* ---- el catálogo de la carpeta de quien administra no se cuela en la vista de otra persona ---- */
+{
+  const T = (id, origen) => origen ? { id, archivo: id + ".json", titulo: id, grupo: "Comercial", origen } : { id, archivo: id + ".json", titulo: id, grupo: "Comercial" };
+  const todos = [T("fact_empresa"), T("fact_nacional", "facturacion_nacional"), T("ventas_nacional", "ventas_2027_nacional")];
+  const ids = l => l.map(t => t.id);
+  igual(ids(tablerosDeSuLista(todos, ["facturacion_nacional", "ventas_2027_nacional"], "facturacion")), ["fact_nacional", "ventas_nacional"], "la carpeta de quien administra no está en su lista: salen sólo las hermanas");
+  igual(ids(tablerosDeSuLista(todos, ["facturacion", "inventario_pt"], "facturacion")), ["fact_empresa", "fact_nacional", "ventas_nacional"], "si la carpeta del enlace está en su lista, se conserva");
+  igual(ids(tablerosDeSuLista(todos, ["Facturacion"], "facturacion")), ["fact_empresa", "fact_nacional", "ventas_nacional"], "la comparación de nombres no distingue mayúsculas");
+  igual(ids(tablerosDeSuLista(todos, [], "facturacion")), ["fact_nacional", "ventas_nacional"], "lista vacía: sólo las hermanas");
+  igual(ids(tablerosDeSuLista(todos, undefined, undefined)), ["fact_nacional", "ventas_nacional"], "sin lista ni carpeta: sólo las hermanas");
+  igual(ids(tablerosDeSuLista(todos, [5, null, "facturacion"], "facturacion")).length, 3, "elementos que no son texto se ignoran");
+  igual(tablerosDeSuLista(null, ["facturacion"], "facturacion"), [], "tableros que no es lista: vacío");
+  igual(ids(tablerosDeSuLista([null, 5, T("x")], ["facturacion"], "facturacion")), ["x"], "renglones rotos se descartan");
+  igual(todos.length, 3, "no modifica la lista de entrada");
+  const app = leer("../sitio/app.js");
+  igual(/if \(vistaComo && f\.tipo === "graph"\) datos\.tableros = tablerosDeSuLista\(/.test(app), true, "cargarCatalogo filtra con tablerosDeSuLista sólo en vista simulada");
+}
 
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "vercomo: " + ok + " de " + ok + " pruebas bien");
 process.exit(mal ? 1 : 0);

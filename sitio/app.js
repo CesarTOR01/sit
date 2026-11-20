@@ -30,7 +30,7 @@ import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
 import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph, leerTextoAcceso } from "./graph.js";
-import { identidadPorLlave, opcionesVerComo, textoFranja, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
+import { identidadPorLlave, opcionesVerComo, textoFranja, tablerosDeSuLista, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -280,6 +280,8 @@ async function cargarCatalogo(f, archivo, conHermanas = true) {
     datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
   }
   if (conHermanas && f.tipo === "graph") datos.tableros = unirCatalogos(datos.tableros, await cargarHermanas(f));
+  // "Ver como": sólo lo que traería la lista de carpetas de la otra persona (no el catálogo de la carpeta de quien administra)
+  if (vistaComo && f.tipo === "graph") datos.tableros = tablerosDeSuLista(datos.tableros, extras && extras.carpetas, nombreDeCarpeta(f.carpeta));
   return datos;
 }
 
