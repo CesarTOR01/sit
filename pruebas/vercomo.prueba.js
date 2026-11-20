@@ -2,7 +2,7 @@
 // Usa correos inventados del dominio reservado .test y un servidor simulado de SharePoint.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { identidadComo, identidadPorLlave, esCorreo, textoFranja, tablerosDeSuLista, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
+import { identidadComo, identidadPorLlave, esCorreo, textoFranja, tablerosDeSuLista, origenDeEnlace, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
 import { hashCorreo, MAX_BYTES } from "../sitio/acceso.js";
 import { visiblesParaGerencia, GENERAL } from "../sitio/gerencias.js";
 import { carpetasALeer } from "../sitio/catalogos.js";
@@ -190,6 +190,16 @@ igual(/\.franja-vercomo \{[^}]*position: fixed/.test(css) && /@media \(max-width
   igual(textoFranja(["Comercial"], "facturacion_nacional").includes("enlace a la carpeta facturacion_nacional"), true, "la franja dice la carpeta del enlace");
   igual(textoFranja(["Comercial"]), textoFranja(["Comercial"], null), "sin inicio la franja es la de siempre");
   igual(textoFranja(["Comercial"], "").includes("enlace"), false, "inicio vacío no aparece");
+  // enlaces de la vista simulada: ver.html abre con la carpeta guardada de quien administra
+  igual(origenDeEnlace({ origen: "ventas_2027" }, "facturacion_nacional", "facturacion"), "ventas_2027", "un tablero de hermana lleva su origen");
+  igual(origenDeEnlace({}, "facturacion_nacional", "facturacion"), "facturacion_nacional", "tablero de la carpeta de inicio distinta de la guardada: pide su carpeta");
+  igual(origenDeEnlace({}, "Facturacion", "facturacion"), null, "inicio igual a la guardada (sin distinguir mayúsculas): sin o");
+  igual(origenDeEnlace({}, null, "facturacion"), null, "sin vista simulada: sin o");
+  igual(origenDeEnlace({}, "facturacion_nacional", null), null, "sin carpeta guardada conocida: sin o");
+  igual(origenDeEnlace(null, "x", "y"), "x", "renglón nulo no lanza");
+  igual(origenDeEnlace({ origen: 5 }, "x", "y"), "x", "origen que no es texto se ignora");
+  const app2 = leer("../sitio/app.js");
+  igual(/origenDeEnlace\(t, inicioSim, fuenteReal \? nombreDeCarpeta\(fuenteReal\.carpeta\) : null\)/.test(app2), true, "hrefDe usa origenDeEnlace con la carpeta real guardada");
 }
 
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "vercomo: " + ok + " de " + ok + " pruebas bien");

@@ -68,6 +68,15 @@ export function tablerosDeSuLista(tableros, carpetas, propia) {
   return lista.filter(t => t && typeof t === "object" && (typeof t.origen === "string" || dentro));
 }
 
+// El parámetro `o` del enlace a un tablero embebido (ver.html lo abre con la identidad real y la carpeta guardada de quien administra):
+// el de una hermana trae su `origen`; en una vista simulada, los de la carpeta de inicio de la persona (`inicio`) piden esa carpeta,
+// salvo que sea la misma que la guardada (`propiaReal`), que ver.html no admite como `o`. null = sin `o`.
+export function origenDeEnlace(t, inicio, propiaReal) {
+  if (t && typeof t.origen === "string") return t.origen;
+  if (typeof inicio !== "string" || !inicio || typeof propiaReal !== "string") return null;
+  return inicio.toLowerCase() === propiaReal.toLowerCase() ? null : inicio;
+}
+
 // Texto de la franja fija mientras hay una vista simulada.
 export const textoFranja = (etiquetas, inicio = null) =>
   "Vista como una persona del catálogo (etiquetas: " + (etiquetas || []).join(", ") + (typeof inicio === "string" && inicio ? "; enlace a la carpeta " + inicio : "") + ") · sólo presentación; el permiso real es el de SharePoint";

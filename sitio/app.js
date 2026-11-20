@@ -30,7 +30,7 @@ import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
 import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph, leerTextoAcceso } from "./graph.js";
-import { identidadPorLlave, opcionesVerComo, textoFranja, tablerosDeSuLista, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
+import { identidadPorLlave, opcionesVerComo, textoFranja, tablerosDeSuLista, origenDeEnlace, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
 
 // Lo primero de todo: si la dirección trae el enlace del catálogo (#c=...), se saca de la barra y se deja en espera
 // hasta que haya sesión. No se imprime, no se guarda en variables del sitio y se borra al usarlo.
@@ -83,7 +83,11 @@ const errorConReintento = (mensaje, id) => h("div", {},
   h("p", {}, h("button", { class: "boton sec", onclick: () => mostrarTablero(id) }, "Reintentar")));
 
 // un embebido de una carpeta hermana se abre con `o` (el nombre de esa carpeta); el de la carpeta del enlace, sin él
-const hrefDe = t => t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) + (t.origen ? "&o=" + encodeURIComponent(t.origen) : "") : "#/" + encodeURIComponent(t.id);
+// (en "Ver como" los de la carpeta de inicio de la otra persona también lo llevan: ver.html abre con la carpeta guardada de quien administra)
+const hrefDe = t => {
+  const o = t.tipo === "embebido" ? origenDeEnlace(t, inicioSim, fuenteReal ? nombreDeCarpeta(fuenteReal.carpeta) : null) : null;
+  return t.tipo === "embebido" ? "ver.html?t=" + encodeURIComponent(t.id) + (o ? "&o=" + encodeURIComponent(o) : "") : "#/" + encodeURIComponent(t.id);
+};
 
 /* ---------- pantallas ---------- */
 const actualizarOlvidar = () => { $("olvidar").hidden = !(leerUbicacion() || haySesion() || hayPendiente()); };
