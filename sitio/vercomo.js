@@ -31,7 +31,7 @@ export async function identidadComo(textoAcceso, correo, hashCorreo) {
     if (typeof llave !== "string" || !llave) return null;
     const a = interpretarAcceso(textoAcceso, llave);
     if (a.estado !== "entrada" || esAdministrador(a.etiquetas)) return null;
-    return { etiquetas: [...a.etiquetas], carpetas: [...(a.carpetas || [])], gerencia: gerenciaDeEtiquetas(a.etiquetas) };
+    return { etiquetas: [...a.etiquetas], carpetas: [...(a.carpetas || [])], gerencia: gerenciaDeEtiquetas(a.etiquetas), inicio: a.inicio || null };
   } catch (_) {
     return null;
   }
@@ -44,7 +44,7 @@ export function identidadPorLlave(textoAcceso, llave) {
     if (typeof llave !== "string" || !/^[0-9a-f]{64}$/.test(llave)) return null;
     const a = interpretarAcceso(textoAcceso, llave);
     if (a.estado !== "entrada" || esAdministrador(a.etiquetas)) return null;
-    return { etiquetas: [...a.etiquetas], carpetas: [...(a.carpetas || [])], gerencia: gerenciaDeEtiquetas(a.etiquetas) };
+    return { etiquetas: [...a.etiquetas], carpetas: [...(a.carpetas || [])], gerencia: gerenciaDeEtiquetas(a.etiquetas), inicio: a.inicio || null };
   } catch (_) {
     return null;
   }
@@ -69,5 +69,5 @@ export function tablerosDeSuLista(tableros, carpetas, propia) {
 }
 
 // Texto de la franja fija mientras hay una vista simulada.
-export const textoFranja = etiquetas =>
-  "Vista como una persona del catálogo (etiquetas: " + (etiquetas || []).join(", ") + ") · sólo presentación; el permiso real es el de SharePoint";
+export const textoFranja = (etiquetas, inicio = null) =>
+  "Vista como una persona del catálogo (etiquetas: " + (etiquetas || []).join(", ") + (typeof inicio === "string" && inicio ? "; enlace a la carpeta " + inicio : "") + ") · sólo presentación; el permiso real es el de SharePoint";

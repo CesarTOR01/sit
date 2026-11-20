@@ -2,7 +2,7 @@
 // Usa correos inventados del dominio reservado .test y un servidor simulado de SharePoint.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { identidadComo, esCorreo, textoFranja, tablerosDeSuLista, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
+import { identidadComo, identidadPorLlave, esCorreo, textoFranja, tablerosDeSuLista, MAX_CORREO, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "../sitio/vercomo.js";
 import { hashCorreo, MAX_BYTES } from "../sitio/acceso.js";
 import { visiblesParaGerencia, GENERAL } from "../sitio/gerencias.js";
 import { carpetasALeer } from "../sitio/catalogos.js";
@@ -57,7 +57,7 @@ hablar();
 igual(resumen(rA), ["comercial", ["Comercial"], []], "con entrada: una etiqueta, su gerencia y sin carpetas");
 igual(resumen(rB), ["finanzas", ["Finanzas", "costo_utilidad"], ["cartera"]], "con varias etiquetas: la gerencia reconocida y la audiencia");
 igual(resumen(rC), ["direccion", ["Dirección"], ["facturacion", "indicadores"]], "con carpetas: las de su etiqueta");
-igual(Object.keys(rA), ["etiquetas", "carpetas", "gerencia"], "la forma es { etiquetas, carpetas, gerencia }, como en app.js");
+igual(Object.keys(rA), ["etiquetas", "carpetas", "gerencia", "inicio"], "la forma es { etiquetas, carpetas, gerencia, inicio }, como en app.js");
 igual(resumen(rMay), resumen(rA), "mayúsculas y espacios a los lados se normalizan igual que hashCorreo");
 igual(resumen(rLargo), ["calidad", ["Calidad"], []], "correo de 254 caracteres: vale");
 
@@ -165,7 +165,31 @@ igual(/\.franja-vercomo \{[^}]*position: fixed/.test(css) && /@media \(max-width
   igual(ids(tablerosDeSuLista([null, 5, T("x")], ["facturacion"], "facturacion")), ["x"], "renglones rotos se descartan");
   igual(todos.length, 3, "no modifica la lista de entrada");
   const app = leer("../sitio/app.js");
-  igual(/if \(vistaComo && f\.tipo === "graph"\) datos\.tableros = tablerosDeSuLista\(/.test(app), true, "cargarCatalogo filtra con tablerosDeSuLista sólo en vista simulada");
+  igual(/if \(vistaComo && !inicioSim && f\.tipo === "graph"\) datos\.tableros = tablerosDeSuLista\(/.test(app), true, "cargarCatalogo filtra con tablerosDeSuLista sólo en vista simulada y sin carpeta de inicio");
+  igual(/const principal = idn\.inicio \? fuenteHermana\(f, idn\.inicio\) : null;/.test(app) && /await conectar\(principal \|\| f, CONFIG\.catalogo\)/.test(app), true, "la vista simulada lee la carpeta de inicio de la persona como carpeta principal");
+  igual(/const f = fuenteReal \|\| fuente;/.test(app) && /conectar\(f, CONFIG\.catalogo\)/.test(app) && /fuenteReal = null; inicioSim = null/.test(app), true, "volver a mi vista y olvidar restauran la carpeta real");
+}
+
+/* ---- carpeta de inicio de la persona (campo opcional `inicio`) ---- */
+{
+  const k1 = "a".repeat(64), k2 = "b".repeat(64), k3 = "c".repeat(64);
+  const texto = inicio => JSON.stringify({ contrato: "acceso/1", personas: { [k1]: ["Comercial"], [k2]: ["Comercial"], [k3]: ["Comercial"] }, carpetas: { Comercial: ["facturacion_nacional"] }, inicio });
+  igual(identidadPorLlave(texto({ [k1]: "facturacion_nacional" }), k1).inicio, "facturacion_nacional", "la identidad trae su carpeta de inicio");
+  igual(identidadPorLlave(texto({ [k1]: "facturacion_nacional" }), k2).inicio, null, "sin entrada en inicio: null");
+  igual(identidadPorLlave(texto({ [k1]: "../x" }), k1).inicio, null, "nombre con .. no vale");
+  igual(identidadPorLlave(texto({ [k1]: "a/b" }), k1).inicio, null, "nombre con diagonal no vale");
+  igual(identidadPorLlave(texto({ [k1]: "acceso" }), k1).inicio, null, "carpeta reservada acceso no vale");
+  igual(identidadPorLlave(texto({ [k1]: "Marca" }), k1).inicio, null, "carpeta reservada marca no vale (sin distinguir mayúsculas)");
+  igual(identidadPorLlave(texto({ [k1]: 5 }), k1).inicio, null, "valor que no es texto no vale");
+  igual(identidadPorLlave(texto(["x"]), k1).inicio, null, "inicio que es lista se ignora");
+  igual(identidadPorLlave(texto("x"), k1).inicio, null, "inicio que es texto se ignora");
+  igual(identidadPorLlave(texto({ [k1]: "x".repeat(65) }), k1).inicio, null, "nombre de 65 caracteres no vale");
+  igual(identidadPorLlave(texto({ [k1]: "facturacion" }), k1).carpetas, ["facturacion_nacional"], "inicio no cambia las carpetas de su lista");
+  igual(identidadPorLlave(JSON.stringify({ contrato: "acceso/1", personas: { [k1]: ["Comercial"] } }), k1).inicio, null, "archivo sin campo inicio: null");
+  igual(identidadPorLlave(texto({ ["__proto__"]: "x", constructor: "y" }), k1).inicio, null, "llaves de prototipo no se heredan");
+  igual(textoFranja(["Comercial"], "facturacion_nacional").includes("enlace a la carpeta facturacion_nacional"), true, "la franja dice la carpeta del enlace");
+  igual(textoFranja(["Comercial"]), textoFranja(["Comercial"], null), "sin inicio la franja es la de siempre");
+  igual(textoFranja(["Comercial"], "").includes("enlace"), false, "inicio vacío no aparece");
 }
 
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "vercomo: " + ok + " de " + ok + " pruebas bien");

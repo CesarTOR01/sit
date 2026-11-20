@@ -54,7 +54,8 @@ let emblemas = {};
 // "Ver como": sólo si la identidad REAL de quien entra es Administrador (adminReal, se decide al entrar). miVista guarda la
 // identidad real para volver a ella; vistaComo son las etiquetas de la vista simulada (null = la propia). Todo vive sólo en
 // memoria de la página: recargar vuelve a la vista propia.
-let adminReal = false, miVista = null, vistaComo = null, franja = null;
+// fuenteReal es la carpeta del enlace de quien administra mientras la vista simulada lee la carpeta de inicio de la otra persona.
+let adminReal = false, miVista = null, vistaComo = null, franja = null, fuenteReal = null, inicioSim = null;
 
 /* ---------- tema ---------- */
 aplicarTema(temaGuardado());
@@ -202,10 +203,10 @@ function controlVerComo() {
     lista.disabled = boton.disabled = !ops.length;
     if (!hayCatalogo) { aviso.textContent = AVISO_SIN_CATALOGO; aviso.hidden = false; }
   };
-  const f = fuente;
+  const f = fuenteReal || fuente;
   if (listaVC && listaVCDe === f) llenar(listaVC, true);
   else leerTextoAcceso(f).then(texto => {
-    if (fuente !== f) return;
+    if ((fuenteReal || fuente) !== f) return;
     listaVC = texto === null ? [] : opcionesVerComo(texto); listaVCDe = f;
     llenar(listaVC, texto !== null);
   });
@@ -218,26 +219,30 @@ async function verComo(lista, aviso) {
   const elegida = listaVC && lista.value !== "" ? listaVC[Number(lista.value)] : null;
   lista.value = "";
   aviso.hidden = true;
-  const f = fuente;
+  const f = fuenteReal || fuente;
   if (!elegida || !adminReal || !miVista || !f || f.tipo !== "graph") return;
   const texto = await leerTextoAcceso(f);
   const idn = texto === null ? null : identidadPorLlave(texto, elegida.llave);
-  if (fuente !== f || !adminReal) return;
+  if ((fuenteReal || fuente) !== f || !adminReal) return;
   if (!idn) { aviso.textContent = texto === null ? AVISO_SIN_CATALOGO : AVISO_SIN_ENTRADA; aviso.hidden = false; return; }
+  // la carpeta principal es la del enlace de esa persona (su `inicio`); sin ella se queda la de quien administra, filtrada por su lista
+  const principal = idn.inicio ? fuenteHermana(f, idn.inicio) : null;
+  fuenteReal = f; inicioSim = principal ? idn.inicio : null;
   vistaComo = idn.etiquetas;
   gerencia = idn.gerencia; etiquetas = idn.etiquetas; accesoRoto = false;
   extras = { admin: false, carpetas: idn.carpetas };
   emblema = emblemas[gerencia.id] || null;
   ponerFranja();
-  await conectar(f, CONFIG.catalogo);
+  await conectar(principal || f, CONFIG.catalogo);
 }
 
 async function volverAMiVista() {
   if (!miVista) return;
   ({ gerencia, etiquetas, accesoRoto, extras, emblema } = miVista);
-  vistaComo = null;
+  const f = fuenteReal || fuente;
+  vistaComo = null; fuenteReal = null; inicioSim = null;
   ponerFranja();
-  if (fuente) await conectar(fuente, CONFIG.catalogo);
+  if (f) await conectar(f, CONFIG.catalogo);
 }
 
 // La franja fija se ve en el menú, la portada y los tableros mientras haya una vista simulada.
@@ -245,10 +250,10 @@ function ponerFranja() {
   document.body.classList.toggle("con-franja", !!vistaComo);
   if (!vistaComo) { if (franja) { franja.remove(); franja = null; } return; }
   if (!franja) { franja = h("div", { class: "franja-vercomo", role: "status" }); document.body.append(franja); }
-  franja.replaceChildren(h("span", {}, textoFranja(vistaComo)), h("button", { class: "boton sec chico", type: "button", onclick: volverAMiVista }, "Volver a mi vista"));
+  franja.replaceChildren(h("span", {}, textoFranja(vistaComo, inicioSim)), h("button", { class: "boton sec chico", type: "button", onclick: volverAMiVista }, "Volver a mi vista"));
 }
 
-function olvidarVerComo() { adminReal = false; miVista = null; vistaComo = null; listaVC = null; listaVCDe = null; ponerFranja(); }
+function olvidarVerComo() { adminReal = false; miVista = null; vistaComo = null; fuenteReal = null; inicioSim = null; listaVC = null; listaVCDe = null; ponerFranja(); }
 
 function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeURIComponent(m[1]) : null; }
 
@@ -281,7 +286,7 @@ async function cargarCatalogo(f, archivo, conHermanas = true) {
   }
   if (conHermanas && f.tipo === "graph") datos.tableros = unirCatalogos(datos.tableros, await cargarHermanas(f));
   // "Ver como": sólo lo que traería la lista de carpetas de la otra persona (no el catálogo de la carpeta de quien administra)
-  if (vistaComo && f.tipo === "graph") datos.tableros = tablerosDeSuLista(datos.tableros, extras && extras.carpetas, nombreDeCarpeta(f.carpeta));
+  if (vistaComo && !inicioSim && f.tipo === "graph") datos.tableros = tablerosDeSuLista(datos.tableros, extras && extras.carpetas, nombreDeCarpeta(f.carpeta));
   return datos;
 }
 

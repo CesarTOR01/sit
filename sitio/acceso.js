@@ -5,6 +5,7 @@
 //                      carpetas?:{ "<Etiqueta>": ["carpeta_hermana", …] } }
 //   La etiqueta Administrador lee todas las carpetas hermanas con catálogo; las demás, sólo las que nombra `carpetas`.
 //   Opcional: `rotulos:{ "<sha256>": "Puesto" }` para la lista de "Ver como" (sólo el puesto, nunca el nombre ni el correo).
+//   Opcional: `inicio:{ "<sha256>": "carpeta" }`, la carpeta a la que apunta el enlace de esa persona; sólo para "Ver como".
 //
 // La llave es el hash del correo, calculado aquí con el perfil de la propia persona; el correo no se guarda, no se imprime y
 // no sale de esta función. La ruta del catálogo no sale de ningún archivo: es la carpeta hermana `acceso` de la carpeta del enlace.
@@ -56,6 +57,15 @@ function carpetasDe(carpetas, etiquetas) {
   return salida;
 }
 
+// Carpeta de inicio de una persona (campo opcional `inicio: { "<sha256 del correo>": "carpeta" }`): el nombre de la carpeta a la que
+// apunta su enlace. Sólo la usa "Ver como" para presentar la vista como la vería esa persona; no decide acceso. Un nombre no válido,
+// reservado o un campo mal formado se ignoran (null).
+function inicioDe(inicio, llave) {
+  if (!esObjeto(inicio) || !Object.prototype.hasOwnProperty.call(inicio, llave)) return null;
+  const n = inicio[llave];
+  return typeof n === "string" && NOMBRE_CARPETA.test(n) && !CARPETAS_RESERVADAS.includes(n.toLowerCase()) ? n : null;
+}
+
 // Rótulos para "Ver como" (campo opcional `rotulos: { "<sha256 del correo>": "Texto corto" }`): sólo el rol o puesto, nunca el nombre
 // de la persona ni su correo. Un rótulo mal formado se ignora. Sólo sirven para rotular la lista de "Ver como": no deciden acceso.
 export const MAX_ROTULO = 40, MAX_LISTA = 200;
@@ -93,6 +103,9 @@ export function interpretarAcceso(texto, llave) {
   if (!Object.prototype.hasOwnProperty.call(datos.personas, llave)) return { estado: "sin-entrada" };
   const v = datos.personas[llave];
   if (!Array.isArray(v) || !v.length || v.length > MAX_ETIQUETAS || !v.every(esEtiqueta)) return { estado: "roto" };
-  const etiquetas = v.map(e => e.trim()), carpetas = carpetasDe(datos.carpetas, etiquetas);
-  return carpetas.length ? { estado: "entrada", etiquetas, carpetas } : { estado: "entrada", etiquetas };
+  const etiquetas = v.map(e => e.trim()), carpetas = carpetasDe(datos.carpetas, etiquetas), inicio = inicioDe(datos.inicio, llave);
+  const r = { estado: "entrada", etiquetas };
+  if (carpetas.length) r.carpetas = carpetas;
+  if (inicio) r.inicio = inicio;
+  return r;
 }
