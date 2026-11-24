@@ -29,6 +29,7 @@ import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, 
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
 import { procesarRetorno, iniciarSesion, haySesion, cerrarSesion, puedeLeerArchivos, hostDeSesion, sesionBasica } from "./auth.js";
+import { debeEntrarSolo, yaIntento, marcarIntento, limpiarIntento, salioAMano, marcarSalida } from "./reentrada.js";
 import { abrirCatalogo, fuenteHermana, listarHermanas, perfil, identidad, leerEmblemas, leerEmblemasDe, textoError, olvidarEquipo, leerUbicacion, tomarEnlaceDelFragmento, dejarPendiente, hayPendiente, tomarPendiente, hostConocido, configurarDesdeEnlace, mismaUbicacion, catalogoNoDisponible, AVISO_CATALOGO, ErrorGraph, leerTextoAcceso } from "./graph.js";
 import { identidadPorLlave, opcionesVerComo, textoFranja, tablerosDeSuLista, origenDeEnlace, AVISO_SIN_ENTRADA, AVISO_SIN_CATALOGO } from "./vercomo.js";
 
@@ -407,6 +408,7 @@ async function conectarSesion() {
 
 $("refrescar").addEventListener("click", () => { if (fuente) conectar(fuente, archivoCatalogo); });
 $("cambiar").addEventListener("click", async () => {
+  marcarSalida(); // cerrar a mano: en esta pestaña no se vuelve a entrar sola
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
   olvidarVerComo();
   fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
@@ -428,6 +430,7 @@ addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
   if (enlaceInvalido && !haySesion()) { mostrarConexion({ aviso: "El enlace no es válido; pide uno nuevo." }); return; }
   const ret = await procesarRetorno();
   if (ret && ret.error) { mostrarConexion({ aviso: textoError(ret.error), ofrecerBasico: ret.error.codigo === "consentimiento" && !ret.basicoIntentado }); return; }
+  if (ret && ret.volver && haySesion()) limpiarIntento(); // la sesión quedó guardada: si vence en esta pestaña, se vuelve a entrar sola
   if (ret && ret.volver) {
     const u = new URL(ret.volver, location.href);
     if (u.origin === location.origin && u.pathname !== location.pathname) { location.replace(u.href); return; }
@@ -437,6 +440,12 @@ addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
   if (base && ["localhost", "127.0.0.1"].includes(location.hostname)) { try { await conectar(new FuenteURL(base), "portal.json"); } catch (e) { mostrarConexion({ aviso: e.message }); } return; }
   if (haySesion()) { await conectarSesion(); return; }
   if (hayPendiente()) { mostrarConexion({ info: "Para abrir SIT con este enlace, inicia sesión con tu cuenta de la organización." }); return; }
+  // la carpeta del catálogo ya se conoce y no hay sesión (pestaña nueva o sesión vencida): se abre el inicio de sesión sin pedir un clic
+  if (debeEntrarSolo({ ubicacion: leerUbicacion(), sesion: false, pendiente: false, local: ["localhost", "127.0.0.1"].includes(location.hostname), intentado: yaIntento(), salio: salioAMano() }) && marcarIntento()) {
+    mostrarConexion({ info: "Entrando con tu cuenta de la organización…" });
+    await iniciarSesion({ host: hostConocido() });
+    return;
+  }
   let guardada = null;
   try { guardada = await carpetaGuardada(); } catch (_) { /* sin carpeta guardada */ }
   if (guardada && guardada.fuente) await conectar(guardada.fuente, "portal.json");

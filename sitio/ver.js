@@ -3,6 +3,7 @@
 import "./guardia.js";
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
+import { marcarSalida } from "./reentrada.js";
 import { abrirCatalogo, fuenteHermana, yo, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
 import { visiblesParaGerencia, esAdministrador } from "./gerencias.js";
 import { carpetaDeEmbebido, nombreDeCarpeta } from "./catalogos.js";
@@ -30,7 +31,7 @@ aplicarTema(temaGuardado());
 // Si el navegador restaura la página desde su memoria de navegación (atrás/adelante), se vuelve a cargar: no se muestran copias.
 addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 
-$("salir").addEventListener("click", () => { cerrarSesion(); location.replace("index.html"); });
+$("salir").addEventListener("click", () => { marcarSalida(); cerrarSesion(); location.replace("index.html"); });
 
 // El tablero corre en marco.html (aislado, con su propia política: lo que el tablero trae en línea no se permite en esta página).
 // Le llega como mensaje de texto, igual que el tema: al abrirlo en su etiqueta <html> (conTema) y como aviso al cambiarlo sin recargar.
