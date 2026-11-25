@@ -168,7 +168,7 @@ igual(/\.franja-vercomo \{[^}]*position: fixed/.test(css) && /@media \(max-width
   igual(ids(tablerosDeSuLista([null, 5, T("x")], ["facturacion"], "facturacion")), ["x"], "renglones rotos se descartan");
   igual(todos.length, 3, "no modifica la lista de entrada");
   const app = leer("../sitio/app.js");
-  igual(/if \(vistaComo && !inicioSim && f\.tipo === "graph"\) datos\.tableros = tablerosDeSuLista\(/.test(app), true, "cargarCatalogo filtra con tablerosDeSuLista sólo en vista simulada y sin carpeta de inicio");
+  igual(/if \(vistaComo && !inicioSim && f\.tipo === "graph"\) return tablerosDeSuLista\(/.test(app) && /ajustar: ajustarVista/.test(app), true, "el menú se filtra con tablerosDeSuLista (ajustarVista) sólo en vista simulada y sin carpeta de inicio");
   igual(/const principal = idn\.inicio \? fuenteHermana\(f, idn\.inicio\) : null;/.test(app) && /await conectar\(principal \|\| f, CONFIG\.catalogo\)/.test(app), true, "la vista simulada lee la carpeta de inicio de la persona como carpeta principal");
   igual(/const f = fuenteReal \|\| fuente;/.test(app) && /conectar\(f, CONFIG\.catalogo\)/.test(app) && /fuenteReal = null; inicioSim = null/.test(app), true, "volver a mi vista y olvidar restauran la carpeta real");
 }

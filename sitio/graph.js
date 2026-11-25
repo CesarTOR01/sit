@@ -13,6 +13,9 @@ export class ErrorGraph extends Error {
 
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 
+// Lista de archivos de una carpeta: elementos por página, tope de elementos y tope de páginas.
+const LISTA_PAGINA = 1000, LISTA_MAX_ARCHIVOS = 5000, LISTA_MAX_PAGINAS = 10;
+
 // Una petición con el token del recurso `tipo` ("graph" o "sp"). cache:"no-store": ni se lee ni se escribe la caché HTTP.
 async function pedir(url, tipo, nombre, init = {}, intento = 0, renovado = false) {
   const t = await token(tipo, renovado);
@@ -144,6 +147,32 @@ export class FuenteSP {
   async metadatos(rel) {
     const j = await (await this.pedir(this.archivo(rel) + "?$select=Name,Length,TimeLastModified", { headers: { Accept: "application/json;odata=nometadata" } })).json();
     return { id: j.Name, nombre: j.Name, bytes: Number(j.Length) || 0, modificado: j.TimeLastModified };
+  }
+  // Los archivos de esta carpeta (sólo los de primer nivel) en una petición por página: [{ nombre, bytes, modificado }].
+  // Sigue la paginación del servicio sin salir del dominio de la carpeta y falla (ErrorGraph "graph") si la lista pasa de
+  // LISTA_MAX_ARCHIVOS o de LISTA_MAX_PAGINAS. Los errores de red y de sesión son los mismos que los de `metadatos`.
+  async archivosDeCarpeta() {
+    const ruta = this.carpeta.split("/").map(s => encodeURIComponent(s.replace(/'/g, "''"))).join("/");
+    let url = this.base() + "/_api/web/GetFolderByServerRelativePath(decodedurl='" + ruta + "')/Files?$select=Name,Length,TimeLastModified&$top=" + LISTA_PAGINA;
+    const salida = [];
+    for (let pagina = 0; url; pagina++) {
+      if (pagina >= LISTA_MAX_PAGINAS) throw new ErrorGraph("graph", "La lista de archivos de la carpeta es demasiado larga.");
+      const j = await (await this.pedir(url, { headers: { Accept: "application/json;odata=nometadata" } })).json();
+      for (const x of Array.isArray(j && j.value) ? j.value : []) {
+        if (x && typeof x.Name === "string") salida.push({ nombre: x.Name, bytes: Number(x.Length) || 0, modificado: x.TimeLastModified });
+      }
+      if (salida.length > LISTA_MAX_ARCHIVOS) throw new ErrorGraph("graph", "La lista de archivos de la carpeta es demasiado larga.");
+      const sig = j && (j["odata.nextLink"] || j["@odata.nextLink"] || j.__next);
+      url = sig ? this.paginaSiguiente(sig) : null;
+    }
+    return salida;
+  }
+  // La dirección de la página siguiente de una lista; sólo se acepta si es https, del mismo dominio y de la API REST (el token no sale de ahí).
+  paginaSiguiente(sig) {
+    let u;
+    try { u = new URL(String(sig), this.base() + "/"); } catch (_) { u = null; }
+    if (!u || u.protocol !== "https:" || u.hostname.toLowerCase() !== String(this.host).toLowerCase() || !u.pathname.includes("/_api/")) throw new ErrorGraph("graph", "La lista de archivos de la carpeta trae una página que no es válida.");
+    return u.href;
   }
   // progreso(bytesLeidos, total) se llama mientras baja; espera(segundos) se llama cada segundo hasta que llega la respuesta.
   async leer(rel, progreso, espera) {

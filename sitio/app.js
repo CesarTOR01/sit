@@ -24,7 +24,8 @@ import { landing } from "./landing.js";
 import { gerenciaDe, visiblesParaGerencia, esAdministrador, idsDeGerencias, GENERAL } from "./gerencias.js";
 import { menuLateral, portadaView, tableroView } from "./vistas.js";
 import { temaGuardado, aplicarTema, alternarTema } from "./tema.js";
-import { carpetasALeer, unirCatalogos, nombreDeCarpeta } from "./catalogos.js";
+import { nombreDeCarpeta } from "./catalogos.js";
+import { cargarMenu, armarMenu, alAbrir } from "./menu_carga.js";
 import { FuenteURL, FuenteArchivos, hayCarpeta, elegirCarpeta, carpetaGuardada, olvidarCarpeta, sha256, aTexto } from "./fuente.js";
 import { CONFIG } from "./config.js";
 import { vigilar, cambio, refrescoMin } from "./relectura.js";
@@ -41,6 +42,8 @@ let enlaceInvalido = false;
 const $ = id => document.getElementById(id);
 const TITULO_PORTADA = document.title;
 let fuente = null, portal = null, actualId = null, archivoCatalogo = "portal.json", usuario = "", gerencia = GENERAL;
+// lo leído de cada carpeta (catálogo y lista de archivos) con el que se arma el menú; ver menu_carga.js
+let estadoMenu = null;
 // etiquetas: la entrada de la persona en el catálogo de acceso (null = sin entrada: se usa el departamento);
 // accesoRoto: el catálogo de acceso existe pero no se pudo usar y se muestra sólo lo general
 let etiquetas = null, accesoRoto = false;
@@ -129,10 +132,10 @@ function pintarMenu() {
 async function mostrarTablero(id, { releer = true, silencioso = false } = {}) {
   const c = $("contenido");
   const y = window.scrollY;
-  // cada apertura vuelve a leer el catálogo: mover el catálogo o cambiar permisos surte efecto en la siguiente apertura
+  // cada apertura vuelve a leer el catálogo de la carpeta del tablero: mover el catálogo o cambiar permisos surte efecto en la siguiente apertura
   if (releer && fuente && fuente.tipo === "graph") {
     if (!silencioso) c.replaceChildren(h("p", { class: "sub-tab" }, "Cargando…"));
-    try { portal = await cargarCatalogo(fuente, archivoCatalogo); }
+    try { portal = await releerMenu(id); }
     catch (e) {
       if (catalogoNoDisponible(e.origen)) { mostrarCatalogoVacio(); return false; }
       if (silencioso) return false;
@@ -264,7 +267,7 @@ function ruta() { const m = location.hash.match(/^#\/(.+)$/); return m ? decodeU
 
 // El catálogo ya no está donde se guardó: menú vacío y un aviso neutro, nada más (ni dónde estaba ni por qué).
 function mostrarCatalogoVacio() {
-  portal = null; actualId = null;
+  portal = null; actualId = null; estadoMenu = null;
   $("conectar").hidden = true; $("marco").hidden = false;
   $("refrescar").hidden = true; $("cambiar").hidden = false; $("cambiar").textContent = "Cerrar sesión"; actualizarOlvidar();
   $("marca").textContent = "SIT"; $("marca-sub").textContent = usuario ? "Sesión de " + usuario : "Sesión iniciada";
@@ -272,44 +275,26 @@ function mostrarCatalogoVacio() {
   $("contenido").replaceChildren(h("div", { class: "aviso warn", role: "alert" }, AVISO_CATALOGO));
 }
 
-// Lee el catálogo EN LÍNEA (nunca de una copia) y, en la organización, deja sólo los tableros cuyo archivo esta
-// persona puede leer en este momento. Se llama al conectar y cada vez que se abre un tablero.
-async function cargarCatalogo(f, archivo, conHermanas = true) {
-  const { datos } = await leerJSON(archivo, undefined, f);
-  if (!Array.isArray(datos.tableros)) throw new Error("El catálogo no trae la lista “tableros”.");
-  const ids = new Set();
-  for (const t of datos.tableros) {
-    if (!t || typeof t.id !== "string" || typeof t.archivo !== "string" || typeof t.titulo !== "string") throw new Error("El catálogo: cada tablero necesita id, titulo y archivo.");
-    if (ids.has(t.id)) throw new Error("El catálogo: el id “" + t.id + "” está repetido.");
-    ids.add(t.id);
-  }
-  if (f.tipo === "graph") {
-    const res = await Promise.allSettled(datos.tableros.map(t => f.metadatos(t.archivo)));
-    const duro = res.find(r => r.status === "rejected" && ["red", "sin-sesion"].includes(r.reason.codigo));
-    if (duro) throw new Error(textoError(duro.reason));
-    datos.tableros = datos.tableros.filter((t, i) => res[i].status === "fulfilled" && (t.meta = res[i].value));
-  }
-  if (conHermanas && f.tipo === "graph") datos.tableros = unirCatalogos(datos.tableros, await cargarHermanas(f));
-  // "Ver como": sólo lo que traería la lista de carpetas de la otra persona (no el catálogo de la carpeta de quien administra)
-  if (vistaComo && !inicioSim && f.tipo === "graph") datos.tableros = tablerosDeSuLista(datos.tableros, extras && extras.carpetas, nombreDeCarpeta(f.carpeta));
-  return datos;
+// "Ver como": sólo lo que traería la lista de carpetas de la otra persona (no el catálogo de la carpeta de quien administra)
+function ajustarVista(tableros, f) {
+  if (vistaComo && !inicioSim && f.tipo === "graph") return tablerosDeSuLista(tableros, extras && extras.carpetas, nombreDeCarpeta(f.carpeta));
+  return tableros;
+}
+// Lo que necesita menu_carga.js: cómo leer un catálogo, la lista de archivos de una carpeta, las hermanas y el ajuste de "Ver como".
+const paramsMenu = () => ({ leerCatalogo: leerJSON, listaDe: fx => fx.archivosDeCarpeta(), textoError, ajustar: ajustarVista, extras, hermanas, catalogo: CONFIG.catalogo, fuenteHermana, listarHermanas });
+
+// Lee el catálogo EN LÍNEA (nunca de una copia) de la carpeta del enlace y de las hermanas que le tocan y, en la organización, deja sólo
+// los tableros cuyo archivo esta persona puede leer en este momento (una lista de archivos por carpeta). Se llama al conectar.
+async function cargarCatalogo(f, archivo) {
+  estadoMenu = await cargarMenu({ f, archivo, ...paramsMenu() });
+  return armarMenu(estadoMenu, f, ajustarVista);
 }
 
-// Los catálogos de las carpetas hermanas que le tocan a la persona (Administrador: todas las que existen; otra etiqueta: las que su lista nombra).
-// Cada una se lee con la cuenta de la persona; la que no se pueda leer se omite sin avisar y el sitio sigue con las demás.
-async function cargarHermanas(f) {
-  hermanas.clear();
-  if (!extras) return [];
-  const existentes = extras.admin ? await listarHermanas(f) : [];
-  const nombres = carpetasALeer({ administrador: extras.admin, existentes, configuradas: extras.carpetas, propia: nombreDeCarpeta(f.carpeta) });
-  const res = await Promise.allSettled(nombres.map(async n => {
-    const fh = fuenteHermana(f, n);
-    if (!fh) throw new Error("sin carpeta");
-    const d = await cargarCatalogo(fh, CONFIG.catalogo, false);
-    hermanas.set(n, fh);
-    return { carpeta: n, tableros: d.tableros };
-  }));
-  return res.filter(r => r.status === "fulfilled").map(r => r.value);
+// Al abrir un tablero sólo se relee el catálogo de su carpeta (la propia o la hermana a la que pertenece); las demás carpetas conservan
+// lo leído al armar el menú. Si el tablero ya no está en el menú, se lee el menú completo.
+async function releerMenu(id) {
+  estadoMenu = await alAbrir({ estado: estadoMenu, id, f: fuente, archivo: archivoCatalogo, ...paramsMenu() });
+  return armarMenu(estadoMenu, fuente, ajustarVista);
 }
 
 async function conectar(f, archivo) {
@@ -411,14 +396,14 @@ $("cambiar").addEventListener("click", async () => {
   marcarSalida(); // cerrar a mano: en esta pestaña no se vuelve a entrar sola
   if (fuente && fuente.tipo === "graph" || haySesion()) cerrarSesion(); else await olvidarCarpeta();
   olvidarVerComo();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear(); estadoMenu = null;
   history.replaceState(null, "", location.pathname); mostrarConexion();
 });
 // Borra todo lo que SIT guardó en este navegador: la ubicación del catálogo, la sesión y la carpeta local recordada.
 $("olvidar").addEventListener("click", async () => {
   olvidarEquipo(); try { await olvidarCarpeta(); } catch (_) { /* sin carpeta guardada */ }
   olvidarVerComo();
-  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear();
+  fuente = portal = null; actualId = null; usuario = ""; gerencia = GENERAL; etiquetas = null; accesoRoto = false; emblema = null; emblemas = {}; extras = null; hermanas.clear(); estadoMenu = null;
   history.replaceState(null, "", location.pathname); mostrarConexion({ info: "Este equipo quedó olvidado. Para volver a abrir SIT necesitas el enlace del catálogo." });
 });
 addEventListener("hashchange", () => { if (portal) mostrarTablero(ruta()); });
