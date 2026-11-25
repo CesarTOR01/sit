@@ -180,18 +180,20 @@ const falla = async (opciones) => { try { await correr(opciones); return null; }
 }
 
 /* ---- estático: ver.js usa cargarConSello y sólo muestra lo que cuadra ---- */
-const js = leer("../sitio/ver.js"), mod = leer("../sitio/cargainicial.js");
-igual(/import \{ cargarConSello \} from "\.\/cargainicial\.js"/.test(js), true, "ver.js importa cargarConSello");
-igual(/await cargarConSello\(\{/.test(js), true, "ver.js usa cargarConSello en la carga inicial");
+// la orquestación (cargarConSello, el sello de la relectura) vive en carga_tablero.js; ver.js la llama y pinta
+const js = leer("../sitio/ver.js"), mod = leer("../sitio/cargainicial.js"), carga = leer("../sitio/carga_tablero.js");
+igual(/import \{ cargarConSello \} from "\.\/cargainicial\.js"/.test(carga), true, "carga_tablero.js importa cargarConSello");
+igual(/await cargarConSello\(\{/.test(carga), true, "carga_tablero.js usa cargarConSello en la carga inicial");
 igual(/"Actualizando el tablero… intento " \+ intento \+ " de " \+ de/.test(js), true, "ver.js avisa: Actualizando el tablero… intento k de 10");
 igual(js.includes('aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos.")'), true, "ver.js conserva el aviso de sello");
 igual(/r\.estado === "no_existe"\) \{ aviso\("Ese tablero no existe o no se muestra en esta página\."\)/.test(js), true, "ver.js: no_existe dice que el tablero no existe");
 igual(/await sha256\(buf\)/.test(js), false, "ver.js ya no compara el sello de la carga inicial por su cuenta");
 igual(/addEventListener\("message"/.test(js), false, "ver.js no escucha mensajes del marco");
 const usos = [...js.matchAll(/\bmostrar\(/g)].map(m => m.index).filter(i => !js.slice(Math.max(0, i - 9), i).includes("function"));
-const iOk = js.indexOf('if (r.estado !== "ok") {'), iB2 = js.indexOf("await sha256(b2)");
+const iOk = js.indexOf('if (r.estado !== "ok") {'), iRel = js.indexOf("await releerPorCatalogo(");
 igual(usos.length, 2, "ver.js llama a mostrar en dos lugares (carga inicial y relectura)");
-igual(iOk > 0 && usos[0] > iOk && iB2 > 0 && usos[1] > iB2, true, "mostrar sólo se llama después de comprobar estado ok o, en la relectura, el sello");
+igual(iOk > 0 && usos[0] > iOk && iRel > 0 && usos[1] > iRel, true, "mostrar sólo se llama después de comprobar estado ok o, en la relectura, después de releerPorCatalogo");
+igual(carga.indexOf("await sha256(b2)") > 0 && carga.indexOf("await sha256(b2)") < carga.indexOf("descomprimir(b2"), true, "carga_tablero.js: la relectura comprueba el sello antes de descomprimir");
 igual(/document\.|window\.|fetch\(|XMLHttpRequest|setTimeout|localStorage|sessionStorage|indexedDB/.test(mod), false, "cargainicial.js sin DOM, red, almacenamiento ni reloj propios");
 
 console.log(mal ? "FALLARON " + mal + " de " + (ok + mal) : "cargainicial: " + ok + " de " + ok + " pruebas bien");

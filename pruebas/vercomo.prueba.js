@@ -103,19 +103,22 @@ let peticiones = [], servidor = () => ({ estado: 404 });
 globalThis.fetch = async (url, init) => {
   peticiones.push(String(url));
   const r = servidor(String(url), init);
-  return { ok: r.estado >= 200 && r.estado < 300, status: r.estado, headers: { get: () => null }, json: async () => r.json, arrayBuffer: async () => new TextEncoder().encode(r.texto ?? "").buffer };
+  return { ok: r.estado >= 200 && r.estado < 300, status: r.estado, headers: { get: n => (r.cabeceras && r.cabeceras[n]) ?? null }, json: async () => r.json, arrayBuffer: async () => new TextEncoder().encode(r.texto ?? "").buffer };
 };
 const fuente = new FuenteSP("h.invalid", "/personal/u/Documents/Raiz/indicadores");
 const esCatalogo = u => u.includes("/Raiz/acceso/sit-acceso.json");
-const sirve = (texto, largoArchivo) => (u) => u.includes("/$value") ? { estado: 200, texto } : { estado: 200, json: { Name: "sit-acceso.json", Length: String(largoArchivo ?? texto.length), TimeLastModified: "2026-01-01T00:00:00Z" } };
+// el catálogo de acceso se lee con tope, sin pedir antes los metadatos: `largoArchivo` es el Content-Length que declara la respuesta
+const sirve = (texto, largoArchivo) => () => ({ estado: 200, texto, ...(largoArchivo === undefined ? {} : { cabeceras: { "Content-Length": String(largoArchivo) } }) });
 const texto = async (resp, f = fuente) => { peticiones = []; servidor = resp; return leerTextoAcceso(f); };
 
 igual(await texto(u => esCatalogo(u) ? sirve(doc)(u) : { estado: 500 }), doc, "leerTextoAcceso: el texto del catálogo de la carpeta hermana");
-igual(peticiones.length === 2 && peticiones.every(esCatalogo), true, "leerTextoAcceso: sólo pide ese archivo, en el mismo host");
+igual(peticiones.length === 1 && peticiones.every(esCatalogo), true, "leerTextoAcceso: sólo pide ese archivo, en el mismo host, en una sola petición (sin metadatos)");
 igual(resumen(await como(B, await texto(sirve(doc)))), ["finanzas", ["Finanzas", "costo_utilidad"], ["cartera"]], "leerTextoAcceso + identidadComo: la persona del catálogo leído");
 igual([await texto(() => ({ estado: 404 })), await texto(() => ({ estado: 403 })), await texto(() => ({ estado: 500 }))], [null, null, null], "leerTextoAcceso: sin archivo, sin permiso o con error, null");
 igual(await texto(sirve(doc, MAX_BYTES + 1)), null, "leerTextoAcceso: demasiado grande, null");
 igual(peticiones.length, 1, "leerTextoAcceso: el archivo demasiado grande no se baja");
+igual(await texto(sirve(" ".repeat(MAX_BYTES + 1))), null, "leerTextoAcceso: demasiado grande sin Content-Length, null");
+igual(await texto(sirve(doc + " ".repeat(MAX_BYTES - Buffer.byteLength(doc)))), doc + " ".repeat(MAX_BYTES - Buffer.byteLength(doc)), "leerTextoAcceso: exactamente el tope se acepta");
 igual([await texto(sirve(doc), new FuenteSP("h.invalid", "/personal/u/Documents/Sola")), peticiones.length], [null, 0], "leerTextoAcceso: carpeta sin padre, sin peticiones");
 igual(await texto(sirve(doc), { tipo: "carpeta" }), null, "leerTextoAcceso: una fuente local no lee acceso");
 igual(sessionStorage.volcado() + localStorage.volcado(), antes, "leerTextoAcceso: no guarda nada en el navegador");

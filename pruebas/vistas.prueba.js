@@ -50,11 +50,11 @@ igual(/return \[inicio, q, lista\]/.test(menu) && /Sin coincidencias/.test(menu)
 igual(/localStorage|sessionStorage|innerHTML/.test(menu), false, "menú: no guarda qué estaba abierto ni usa HTML crudo");
 
 /* ---- tableros embebidos de carpetas hermanas: el enlace lleva la carpeta (o) y ver.js la valida ---- */
-const verjs = leer("../sitio/ver.js");
+const verjs = leer("../sitio/carga_tablero.js") + leer("../sitio/ver.js"); // la validación de la carpeta y las lecturas viven en carga_tablero.js
 igual(/"ver\.html\?t=" \+ encodeURIComponent\(t\.id\) \+ \(o \? "&o=" \+ encodeURIComponent\(o\) : ""\)/.test(app) && /origenDeEnlace\(t, inicioSim,/.test(app), true, "app.js: el enlace de un embebido de hermana lleva &o=<carpeta>, el de la carpeta del enlace no");
 igual(/carpetaDeEmbebido\(\{ origen: o, administrador: esAdministrador\(idn\.etiquetas\), configuradas: idn\.carpetas, propia: nombreDeCarpeta\(fuente\.carpeta\) \}\)/.test(verjs), true, "ver.js: la carpeta o se valida con las reglas de la persona");
-igual(/origen = carpeta \? fuenteHermana\(fuente, carpeta\) : null/.test(verjs) && /if \(!origen\) \{ aviso\("Ese tablero no existe o no se muestra en esta página\."\); return; \}/.test(verjs), true, "ver.js: una carpeta no válida o que no le toca dice lo mismo que un tablero que no existe");
-igual((verjs.match(/origen\.(leer|metadatos)\(/g) || []).length === 7 && !/\bfuente\.(leer|metadatos)\(/.test(verjs), true, "ver.js: catálogo, archivo, metadatos y relectura salen de la carpeta del tablero");
+igual(/origen = carpeta \? fuenteHermana\(fuente, carpeta\) : null/.test(verjs) && /if \(!origen\) return \{ estado: "no_existe" \};/.test(verjs) && /r\.estado === "no_existe"\) \{ aviso\("Ese tablero no existe o no se muestra en esta página\."\)/.test(verjs), true, "ver.js: una carpeta no válida o que no le toca dice lo mismo que un tablero que no existe");
+igual((verjs.match(/origen\.leer\(/g) || []).length === 5 && !/\bfuente\.(leer|metadatos)\(/.test(verjs) && !/metadatos/.test(verjs), true, "carga_tablero.js y ver.js: catálogo, archivo y relectura salen de la carpeta del tablero, y ya no piden metadatos");
 
 /* ---- lo que no debe entrar a vistas.js: sesión, red, almacenamiento ---- */
 const vistas = leer("../sitio/vistas.js");

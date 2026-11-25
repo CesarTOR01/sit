@@ -5,6 +5,7 @@ import { token, ErrorAuth } from "./auth.js";
 import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "./acceso.js";
 import { nombreEmblema, aImagen, MAX_SVG } from "./emblemas.js";
 import { gerenciaDe, gerenciaDeEtiquetas, GENERAL } from "./gerencias.js";
+import { leerConTope } from "./lecturatope.js";
 
 export class ErrorGraph extends Error {
   constructor(codigo, mensaje, estado) { super(mensaje); this.codigo = codigo; this.estado = estado || null; }
@@ -159,6 +160,8 @@ export class FuenteSP {
     for (const p of partes) { salida.set(p, o); o += p.length; }
     return salida.buffer;
   }
+  // Como `leer`, pero con un tope de bytes y sin pedir antes los metadatos: no baja más de `max` (ErrorTope si se pasa).
+  async leerTope(rel, max) { return leerConTope(await this.pedir(this.archivo(rel) + "/$value"), max); }
 }
 
 export async function abrirCatalogo() {
@@ -191,9 +194,7 @@ export async function leerAcceso(f, llave) {
   if (!r || r.host !== f.host) return { estado: "sin-catalogo" };
   const a = new FuenteSP(r.host, r.carpeta);
   try {
-    const meta = await a.metadatos(CONFIG.acceso);
-    if (meta.bytes > MAX_BYTES) return { estado: "roto" };
-    return interpretarAcceso(new TextDecoder("utf-8").decode(await a.leer(CONFIG.acceso)), llave);
+    return interpretarAcceso(new TextDecoder("utf-8").decode(await a.leerTope(CONFIG.acceso, MAX_BYTES)), llave);
   } catch (e) {
     return e instanceof ErrorGraph && e.codigo === "no-existe" ? { estado: "sin-catalogo" } : { estado: "roto" };
   }
@@ -207,9 +208,7 @@ export async function leerTextoAcceso(f) {
   if (!r || r.host !== f.host) return null;
   const a = new FuenteSP(r.host, r.carpeta);
   try {
-    const meta = await a.metadatos(CONFIG.acceso);
-    if (meta.bytes > MAX_BYTES) return null;
-    return new TextDecoder("utf-8").decode(await a.leer(CONFIG.acceso));
+    return new TextDecoder("utf-8").decode(await a.leerTope(CONFIG.acceso, MAX_BYTES));
   } catch (_) {
     return null;
   }

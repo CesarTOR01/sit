@@ -192,12 +192,13 @@ let peticiones = [], servidor = () => ({ estado: 404 });
 globalThis.fetch = async (url, init) => {
   peticiones.push(String(url));
   const r = servidor(String(url), init);
-  return { ok: r.estado >= 200 && r.estado < 300, status: r.estado, headers: { get: () => null }, json: async () => r.json, arrayBuffer: async () => new TextEncoder().encode(r.texto ?? "").buffer };
+  return { ok: r.estado >= 200 && r.estado < 300, status: r.estado, headers: { get: n => (r.cabeceras && r.cabeceras[n]) ?? null }, json: async () => r.json, arrayBuffer: async () => new TextEncoder().encode(r.texto ?? "").buffer };
 };
 const carpetaEnlace = "/personal/u/Documents/Raiz/indicadores";
 const fuente = new FuenteSP("h.invalid", carpetaEnlace);
 const esCatalogo = u => u.includes("/Raiz/acceso/sit-acceso.json");
-const sirve = (texto, largo) => (u) => u.includes("/$value") ? { estado: 200, texto } : { estado: 200, json: { Name: "sit-acceso.json", Length: String(largo ?? texto.length), TimeLastModified: "2026-01-01T00:00:00Z" } };
+// el catálogo de acceso se lee con tope, sin pedir antes los metadatos: `largo` es el Content-Length que declara la respuesta
+const sirve = (texto, largo) => () => ({ estado: 200, texto, ...(largo === undefined ? {} : { cabeceras: { "Content-Length": String(largo) } }) });
 
 servidor = () => ({ estado: 200, json: { displayName: "Persona Ficticia", department: "Ventas", userPrincipalName: ana.toUpperCase() } });
 const p = await perfil();
@@ -209,15 +210,17 @@ const acceso = async (resp, llave = esperado, f = fuente) => { peticiones = []; 
 const entradaAna = JSON.stringify({ contrato: "acceso/1", personas: { [esperado]: ["Comercial", "costo_utilidad"] } });
 
 igual(await acceso(u => esCatalogo(u) ? sirve(entradaAna)(u) : { estado: 500 }), { estado: "entrada", etiquetas: ["Comercial", "costo_utilidad"] }, "leerAcceso: entrada");
-igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath")) && peticiones.every(esCatalogo) && peticiones.length === 2, true, "leerAcceso: sólo pide el archivo de la carpeta hermana, en el mismo host");
+igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath")) && peticiones.every(esCatalogo) && peticiones.length === 1, true, "leerAcceso: sólo pide el archivo de la carpeta hermana, en el mismo host, en una sola petición (sin metadatos)");
 igual(await acceso(sirve(entradaAna), await hashCorreo(correo("otra", "ejemplo.invalid"))), { estado: "sin-entrada" }, "leerAcceso: sin entrada");
 igual(await acceso(() => ({ estado: 404 })), { estado: "sin-catalogo" }, "leerAcceso: el archivo no existe");
 igual(await acceso(() => ({ estado: 403 })), { estado: "roto" }, "leerAcceso: sin permiso sobre la carpeta de acceso");
 igual(await acceso(() => ({ estado: 500 })), { estado: "roto" }, "leerAcceso: error del servidor");
 igual(await acceso(sirve("{ no es json")), { estado: "roto" }, "leerAcceso: JSON malformado");
 igual(await acceso(sirve("{}")), { estado: "roto" }, "leerAcceso: contrato ausente");
-igual(await acceso(sirve(entradaAna, MAX_BYTES + 1)), { estado: "roto" }, "leerAcceso: archivo demasiado grande, sin bajarlo");
+igual(await acceso(sirve(entradaAna, MAX_BYTES + 1)), { estado: "roto" }, "leerAcceso: archivo demasiado grande por su Content-Length, sin bajarlo");
 igual(peticiones.length, 1, "leerAcceso: el archivo demasiado grande no se baja");
+igual(await acceso(sirve(" ".repeat(MAX_BYTES + 1))), { estado: "roto" }, "leerAcceso: archivo demasiado grande sin Content-Length, por los bytes que llegan");
+igual(await acceso(sirve(entradaAna + " ".repeat(MAX_BYTES - entradaAna.length))), { estado: "entrada", etiquetas: ["Comercial", "costo_utilidad"] }, "leerAcceso: un archivo que mide exactamente el tope se acepta");
 igual(await acceso(sirve(entradaAna), esperado, new FuenteSP("h.invalid", "/personal/u/Documents/Sola")), { estado: "sin-catalogo" }, "leerAcceso: carpeta sin padre");
 igual(peticiones.length, 0, "leerAcceso: sin padre no hay ninguna petición");
 igual(await acceso(sirve(entradaAna), esperado, { tipo: "carpeta" }), { estado: "sin-catalogo" }, "leerAcceso: una fuente local no busca acceso");
@@ -238,7 +241,7 @@ igual([iNo.gerencia.id, iNo.etiquetas, iNo.accesoRoto], ["finanzas", null, false
 const iRoto = await quien(() => ({ estado: 403 }), { llave: esperado, departamento: "Ventas" });
 igual([iRoto.gerencia === GENERAL, iRoto.etiquetas, iRoto.accesoRoto], [true, ["General"], true], "identidad: catálogo ilegible, sólo lo general y aviso");
 igual((await quien(() => ({ estado: 404 }), undefined)).gerencia === GENERAL, true, "identidad: sin perfil queda general");
-const veriSrc = readFileSync(new URL("../sitio/ver.js", import.meta.url), "utf8");
+const veriSrc = readFileSync(new URL("../sitio/carga_tablero.js", import.meta.url), "utf8") + readFileSync(new URL("../sitio/ver.js", import.meta.url), "utf8"); // la orquestación vive en carga_tablero.js
 igual(/const p = await perfil\(\)[^;]*;[\s\S]*?identidad\(fuente, p\)/.test(veriSrc) && /visiblesParaGerencia\([\s\S]*?idn\.gerencia, idn\.etiquetas\)/.test(veriSrc), true, "ver.js decide con la identidad del catálogo de acceso, no sólo con el Departamento");
 igual(/gerenciaDe\(/.test(veriSrc), false, "ver.js ya no decide sólo por Departamento");
 

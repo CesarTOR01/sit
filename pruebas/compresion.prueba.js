@@ -112,7 +112,7 @@ await rechaza(() => descomprimir(GZ, renglon({ sha256_descomprimido: hex(CRUDO) 
 
 /* ---- estáticas: ver.js usa el módulo en la carga inicial y en la relectura ---- */
 {
-  const ver = leer("../sitio/ver.js");
+  const ver = leer("../sitio/carga_tablero.js") + leer("../sitio/ver.js"); // la carga y la relectura viven en carga_tablero.js
   igual(/from "\.\/compresion\.js"/.test(ver), true, "ver.js importa compresion.js");
   igual(/planDeCompresion\(t\)/.test(ver), true, "ver.js revisa el plan antes de bajar el archivo");
   igual(/mostrar\(aTexto\(buf\)\)/.test(ver), false, "ver.js ya no pinta el buffer sin pasar por descomprimir");

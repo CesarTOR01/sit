@@ -4,16 +4,14 @@ import "./guardia.js";
 import { h } from "./comun.js";
 import { haySesion, puedeLeerArchivos, cerrarSesion, recordarDestino } from "./auth.js";
 import { marcarSalida } from "./reentrada.js";
-import { abrirCatalogo, fuenteHermana, yo, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
+import { abrirCatalogo, fuenteHermana, perfil, identidad, textoError, catalogoNoDisponible, AVISO_CATALOGO } from "./graph.js";
 import { visiblesParaGerencia, esAdministrador } from "./gerencias.js";
-import { carpetaDeEmbebido, nombreDeCarpeta } from "./catalogos.js";
-import { sha256, aTexto } from "./fuente.js";
+import { sha256 } from "./fuente.js";
 import { CONFIG } from "./config.js";
-import { vigilar, cambio, refrescoMin } from "./relectura.js";
+import { vigilar, refrescoMin } from "./relectura.js";
 import { temaGuardado, temaActual, aplicarTema, alternarTema, conTema, mensajeTema } from "./tema.js";
 import { enlacesValidos } from "./enlaces.js";
-import { cargarConSello } from "./cargainicial.js";
-import { planDeCompresion, descomprimir, MENSAJES } from "./compresion.js";
+import { cargarTablero, releerPorCatalogo } from "./carga_tablero.js";
 import { resumenTiempos } from "./tiempos.js";
 
 const $ = id => document.getElementById(id);
@@ -49,7 +47,8 @@ marco.src = "marco.html"; // después de escuchar su carga, para no perderla
 const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
 
 (async () => {
-  const id = new URLSearchParams(location.search).get("t");
+  const consulta = new URLSearchParams(location.search);
+  const id = consulta.get("t");
   if (!id) { aviso("Falta indicar el tablero."); return; }
   if (!haySesion()) { recordarDestino(location.href); location.replace("index.html"); return; }
   if (!puedeLeerArchivos()) { aviso("Tu sesión no tiene autorizada la lectura de archivos para SIT, así que no se puede abrir este tablero."); return; }
@@ -57,91 +56,47 @@ const fechaCorta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.s
   try {
     const fuente = await abrirCatalogo();
     $("salir").hidden = false;
-    yo().then(n => { if (n) $("sub").textContent = "Sesión de " + n; }).catch(() => {});
-    // sólo los tableros que le tocan a la persona (su entrada del catálogo de acceso o, sin ella, su Departamento): los demás no se abren desde aquí
-    const p = await perfil().catch(() => ({}));
-    marca("perfil");
-    const idn = await identidad(fuente, p);
-    marca("acceso");
-    // `o`: el tablero está en una carpeta hermana de la del enlace; sólo se abre si a la persona le toca esa carpeta (Administrador: cualquiera; otra etiqueta: las de su lista)
-    let origen = fuente;
-    const o = new URLSearchParams(location.search).get("o");
-    if (o !== null) {
-      const carpeta = carpetaDeEmbebido({ origen: o, administrador: esAdministrador(idn.etiquetas), configuradas: idn.carpetas, propia: nombreDeCarpeta(fuente.carpeta) });
-      origen = carpeta ? fuenteHermana(fuente, carpeta) : null;
-      if (!origen) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
-    }
-    // catálogo y renglón del tablero: se usan en la primera lectura y en cada reintento de la carga inicial
-    const leerCat = async () => {
-      const c = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo)));
-      if (c.contrato !== "visor/1" || !Array.isArray(c.tableros)) throw new Error("El catálogo no tiene el formato esperado.");
-      return c;
-    };
-    const buscarTablero = c => {
-      const x = visiblesParaGerencia(c.tableros.filter(y => y && typeof y.id === "string"), idn.gerencia, idn.etiquetas).find(y => y.id === id);
-      return x && x.tipo === "embebido" && typeof x.archivo === "string" ? x : null;
-    };
-    let cat;
-    try { cat = await leerCat(); }
-    catch (e) { if (catalogoNoDisponible(e)) { aviso(AVISO_CATALOGO, "warn"); return; } throw e; }
-    marca("catálogo");
-    let t = buscarTablero(cat);
-    if (!t) { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
-    const plan0 = planDeCompresion(t); // antes de bajar nada: un renglón con compresión que el sitio no acepta no se descarga
-    if (!plan0.ok) { aviso(MENSAJES[plan0.motivo] || MENSAJES.compresion); return; }
-    $("titulo").textContent = t.titulo || "SIT";
-    document.title = (t.titulo || "Tablero") + " · SIT";
-    pintarEnlaces(t);
-
-    let meta = await origen.metadatos(t.archivo).catch(() => null); // para saber después si el archivo cambió
-    marca("metadatos");
-    const barra = h("progress", { max: 1, value: 0 }), texto = h("p", { class: "sub-tab" }, "Descargando…");
-    estado(texto, barra);
-    // si el sello no cuadra (catálogo y archivo a medio publicar) se espera y se releen los dos: cada 30 s, hasta 10 veces
-    let primera = true;
-    const r = await cargarConSello({
-      leerCatalogo: async () => { if (primera) { primera = false; return cat; } return leerCat(); },
-      buscarTablero,
-      leerArchivo: ruta => origen.leer(ruta,
+    let barra = null, texto = null;
+    // el orden de las lecturas (perfil, acceso y catálogo a la vez, archivo), el sello y la compresión los resuelve carga_tablero.js;
+    // aquí sólo se pinta lo que va pasando
+    const r = await cargarTablero({
+      id, o: consulta.get("o"), fuente, rutaCatalogo: CONFIG.catalogo,
+      perfil, identidad, fuenteHermana, visiblesParaGerencia, esAdministrador, catalogoNoDisponible, sha256, marca,
+      esperar: ms => new Promise(listo => setTimeout(listo, ms)),
+      leerArchivo: (origen, ruta) => origen.leer(ruta,
         (n, total) => { if (total) { barra.max = total; barra.value = n; texto.textContent = "Descargando " + mb(n) + " de " + mb(total); } else texto.textContent = "Descargando " + mb(n); },
         s => { texto.textContent = "Esperando respuesta del servidor… " + s + " s"; }),
-      sha256,
-      esperar: ms => new Promise(listo => setTimeout(listo, ms)),
-      avisar: ({ intento, de }) => { barra.max = 1; barra.value = 0; texto.textContent = "Descargando…"; estado(h("p", { class: "sub-tab" }, "Actualizando el tablero… intento " + intento + " de " + de), texto, barra); },
+      ui: {
+        perfil: p => { if (p && p.nombre) $("sub").textContent = "Sesión de " + p.nombre; },
+        encontrado: t => {
+          $("titulo").textContent = t.titulo || "SIT";
+          document.title = (t.titulo || "Tablero") + " · SIT";
+          pintarEnlaces(t);
+          barra = h("progress", { max: 1, value: 0 }); texto = h("p", { class: "sub-tab" }, "Descargando…");
+          estado(texto, barra);
+        },
+        reintento: ({ intento, de }) => { barra.max = 1; barra.value = 0; texto.textContent = "Descargando…"; estado(h("p", { class: "sub-tab" }, "Actualizando el tablero… intento " + intento + " de " + de), texto, barra); },
+        cambioRenglon: t => pintarEnlaces(t),
+        preparando: () => { texto.textContent = "Preparando el tablero…"; barra.removeAttribute("value"); },
+      },
     });
+    if (r.estado === "catalogo") { aviso(AVISO_CATALOGO, "warn"); return; }
     if (r.estado === "no_existe") { aviso("Ese tablero no existe o no se muestra en esta página."); return; }
-    if (r.estado !== "ok") { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
-    marca("archivo");
-    const buf = r.buf;
-    // si un reintento trajo otro renglón (otro archivo o refresco), la relectura sigue ese renglón y sus enlaces
-    if (r.t && r.t !== t) { if (r.t.archivo !== t.archivo) meta = await origen.metadatos(r.t.archivo).catch(() => null); t = r.t; pintarEnlaces(t); }
-
-    // si el archivo está guardado comprimido (gzip), aquí se descomprime con el tamaño y el sello que declara su renglón
-    const planT = planDeCompresion(t);
-    if (!planT.ok) { aviso(MENSAJES[planT.motivo] || MENSAJES.compresion); return; }
-    let html;
-    try {
-      if (planT.comprimido) { texto.textContent = "Preparando el tablero…"; barra.removeAttribute("value"); }
-      html = aTexto(await descomprimir(buf, t, { sha256 }));
-      if (planT.comprimido) marca("descomprimido");
-    } catch (e) { aviso(e && e.message ? e.message : "No se pudo preparar el tablero."); return; }
+    if (r.estado === "sello") { aviso("El archivo no cuadra con su sello (sha256). Puede estar a medio sincronizar: vuelve a intentarlo en unos minutos."); return; }
+    if (r.estado !== "ok") { aviso(r.mensaje); return; }
+    const { origen, html } = r;
+    let visto = r.t;
     mostrar(html);
-    // relectura automática: sólo si el archivo cambió (fecha o tamaño) y la pestaña está visible; cada `refresco_min` minutos
-    // del catálogo (o el valor por omisión). Si falla se avisa y se reintenta con espera creciente.
-    let minutos = refrescoMin(t, CONFIG.releerCadaMin);
+    // relectura automática: cada revisión lee el catálogo y compara el renglón del tablero con el que se mostró; sólo si cambió
+    // baja el archivo nuevo. Cada `refresco_min` minutos del catálogo (o el valor por omisión), con la pestaña visible.
+    // Si falla se avisa y se reintenta con espera creciente.
+    let minutos = refrescoMin(visto, CONFIG.releerCadaMin);
     vigilar(async () => {
       try {
-        const ahora = await origen.metadatos(t.archivo);
-        if (cambio(meta, ahora)) {
-          // el catálogo se relee también: trae el sello del archivo nuevo y el refresco vigente
-          const c2 = JSON.parse(aTexto(await origen.leer(CONFIG.catalogo)));
-          const t2 = (c2.tableros || []).find(x => x && x.id === t.id && typeof x.archivo === "string");
-          if (!t2) throw new Error("el tablero ya no está en el catálogo");
-          const b2 = await origen.leer(t2.archivo);
-          if (t2.sha256 && await sha256(b2) !== String(t2.sha256).toLowerCase()) throw new Error("a medio sincronizar");
-          if (!planDeCompresion(t2).ok) throw new Error("compresión no admitida");
-          const html2 = aTexto(await descomprimir(b2, t2, { sha256 }));
-          meta = ahora; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
+        const res = await releerPorCatalogo({ origen, rutaCatalogo: CONFIG.catalogo, visto, sha256 });
+        if (res.cambio) {
+          const { t: t2, html: html2 } = res;
+          visto = t2; minutos = refrescoMin(t2, CONFIG.releerCadaMin);
           pintarEnlaces(t2);
           mostrar(html2);
         }

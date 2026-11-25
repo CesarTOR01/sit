@@ -1,8 +1,28 @@
 // Relectura del tablero abierto: sólo mientras la pestaña está visible, cada cierto tiempo y al volver a verla.
-// Antes de bajar un archivo completo se compara su fecha de modificación y su tamaño; si no cambió, no se baja.
+// Antes de bajar un archivo completo se compara el renglón del catálogo con el que se mostró; si no cambió, no se baja.
 
 // ¿Cambió el archivo entre dos lecturas de sus metadatos ({ modificado, bytes })? Sin una de las dos, se supone que sí.
 export const cambio = (antes, ahora) => !antes || !ahora || antes.modificado !== ahora.modificado || antes.bytes !== ahora.bytes;
+
+const sello = v => (v === undefined || v === null ? null : String(v).toLowerCase());
+const numero = v => (v === undefined || v === null ? null : Number(v));
+
+// ¿Cambió el renglón del tablero entre dos lecturas del catálogo? Compara `archivo`, `sha256`, `bytes` y `sha256_descomprimido`
+// (los sellos sin distinguir mayúsculas; un campo ausente en los dos renglones no cuenta). Sin uno de los dos renglones, se supone que sí.
+// Si ninguno de los dos renglones trae alguno de esos cuatro campos, compara `actualizado` (si alguno lo trae) y, si tampoco existe, se supone que cambió.
+const CAMPOS = ["archivo", "sha256", "bytes", "sha256_descomprimido"];
+const trae = r => CAMPOS.some(c => r[c] !== undefined && r[c] !== null);
+export const cambioPorCatalogo = (antes, ahora) => {
+  if (!antes || typeof antes !== "object" || !ahora || typeof ahora !== "object") return true;
+  if (!trae(antes) && !trae(ahora)) {
+    const a = antes.actualizado, b = ahora.actualizado;
+    return (a === undefined || a === null) && (b === undefined || b === null) ? true : String(a) !== String(b);
+  }
+  return antes.archivo !== ahora.archivo
+    || sello(antes.sha256) !== sello(ahora.sha256)
+    || numero(antes.bytes) !== numero(ahora.bytes)
+    || sello(antes.sha256_descomprimido) !== sello(ahora.sha256_descomprimido);
+};
 
 // Minutos entre revisiones de un tablero: su campo `refresco_min` del catálogo (de 1 a 1440 minutos) o, si no lo trae o no
 // es válido, el valor por omisión de la configuración.

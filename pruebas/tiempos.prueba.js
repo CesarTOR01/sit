@@ -29,12 +29,14 @@ igual(resumenTiempos([["descomprimido", 900], ["listo", 910]]).detalle, "descomp
   igual(/\$\("tiempo"\)\.textContent = r\.texto/.test(ver) && /\$\("tiempo"\)\.title = r\.detalle/.test(ver), true, "ver.js pone el texto con textContent y el detalle como title");
   igual(/innerHTML|insertAdjacentHTML|eval\(/.test(ver + modulo), false, "ni HTML crudo ni eval");
   igual(/localStorage|sessionStorage|fetch\(|XMLHttpRequest/.test(modulo), false, "tiempos.js no guarda ni envía nada");
-  const nombres = [...ver.matchAll(/marca\("([^"]+)"\)/g)].map(m => m[1]);
-  igual(nombres, ["perfil", "acceso", "catálogo", "metadatos", "archivo", "descomprimido", "listo"], "marcas en el orden de la carga");
+  // las marcas de la carga las pone carga_tablero.js (por el parámetro `marca`) y la de "listo", ver.js
+  const carga = leer("../sitio/carga_tablero.js");
+  const nombres = [...(carga + ver).matchAll(/marca\("([^"]+)"\)/g)].map(m => m[1]);
+  igual(nombres, ["perfil", "acceso y catálogo", "archivo", "descomprimido", "listo"], "marcas en el orden de la carga: acceso y catálogo van juntos y ya no hay marca de metadatos");
   igual(/tiempoMostrado/.test(ver) && (ver.match(/tiempoMostrado = true/g) || []).length === 1, true, "el tiempo se muestra sólo en la primera carga, no en cada relectura");
   igual(nombres.every(n => /^[a-zñáéíóú ]{1,20}$/.test(n)), true, "todos los nombres de marca los acepta resumenTiempos");
   // ninguna marca lleva datos: sólo nombres fijos entre comillas
-  igual(/marca\([^")]/.test(ver.replace(/const marca = nombre => marcas\.push/, "")), false, "marca() sólo recibe textos fijos");
+  igual(/marca\([^")]/.test((carga + ver).replace(/const marca = nombre => marcas\.push/, "")), false, "marca() sólo recibe textos fijos");
 }
 
 console.log("tiempos: " + ok + " de " + (ok + mal) + " pruebas bien");
