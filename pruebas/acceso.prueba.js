@@ -305,6 +305,8 @@ igual(carpetaDeEmbebido({ origen: "acceso", administrador: false, configuradas: 
 const { leerEmblemasDe } = await import("../sitio/graph.js");
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
 const sirveSvg = nombres => u => {
+  // la lista de archivos de la carpeta marca (una sola petición para todas las gerencias)
+  if (u.includes("/Files?") && decodeURIComponent(u).includes("/Raiz/marca")) return { estado: 200, json: { value: nombres.map(x => ({ Name: x, Length: String(SVG.length), TimeLastModified: "2026-01-01T00:00:00Z" })) } };
   const n = nombres.find(x => decodeURIComponent(u).includes("/Raiz/marca/" + x));
   if (!n) return { estado: 404 };
   return u.includes("/$value") ? { estado: 200, texto: SVG } : { estado: 200, json: { Name: n, Length: String(SVG.length), TimeLastModified: "2026-01-01T00:00:00Z" } };
@@ -315,7 +317,8 @@ igual(Object.keys(em), ["comercial", "compras", "calidad"], "emblemas: una entra
 igual(em.comercial && em.comercial.claro.startsWith("data:image/svg+xml;base64,") && em.comercial.oscuro.startsWith("data:image/svg+xml;base64,"), true, "emblemas: positivo y negativo como direcciones data:");
 igual(em.compras && em.compras.claro.startsWith("data:") && em.compras.oscuro === null, true, "emblemas: sin negativo, el positivo solo (va en recuadro claro)");
 igual(em.calidad, null, "emblemas: la gerencia sin emblema queda en null");
-igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath") && decodeURIComponent(u).includes("/Raiz/marca/")), true, "emblemas: sólo se pide a la carpeta marca hermana, en el mismo dominio");
+igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetF") && decodeURIComponent(u).includes("/Raiz/marca")), true, "emblemas: sólo se pide a la carpeta marca hermana, en el mismo dominio");
+igual(peticiones.length, 1 + 3, "emblemas: una lista de marca y una lectura por archivo que existe, sin metadatos ni peticiones por los que faltan");
 servidor = () => ({ estado: 500 });
 igual(await leerEmblemasDe(fuente, ["comercial", "calidad"]), { comercial: null, calidad: null }, "emblemas: un error del servidor no lanza, deja null");
 servidor = () => ({ estado: 403 });
@@ -326,7 +329,7 @@ igual(Object.keys(await leerEmblemasDe(fuente, Array.from({ length: 50 }, (_, i)
 peticiones = []; servidor = sirveSvg(["emblema-comercial.svg"]);
 const emSin = await leerEmblemasDe(fuente, idsDeGerencias());
 igual(Object.prototype.hasOwnProperty.call(emSin, "servicios") && emSin.servicios === null, true, "emblemas: sin emblema-servicios.svg, Servicios Corporativos queda en null (el frente usa la ilustración)");
-igual(peticiones.some(u => decodeURIComponent(u).includes("/Raiz/marca/emblema-servicios.svg")) && !peticiones.some(u => /emblema-(rrhh|sistemas)/.test(decodeURIComponent(u))), true, "emblemas: se pide emblema-servicios.svg y ya no los de rrhh ni sistemas");
+igual(!peticiones.some(u => /emblema-(servicios|rrhh|sistemas)/.test(decodeURIComponent(u))), true, "emblemas: lo que no está en la lista de marca (servicios, rrhh, sistemas) no se pide");
 servidor = sirveSvg(["emblema-servicios.svg", "emblema-servicios-negativo.svg"]);
 const emCon = await leerEmblemasDe(fuente, idsDeGerencias());
 igual(emCon.servicios && emCon.servicios.claro.startsWith("data:image/svg+xml;base64,") && emCon.servicios.oscuro.startsWith("data:image/svg+xml;base64,"), true, "emblemas: con emblema-servicios.svg y su negativo, Servicios Corporativos los usa");

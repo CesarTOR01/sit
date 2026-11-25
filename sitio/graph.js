@@ -6,6 +6,7 @@ import { hashCorreo, rutaAcceso, interpretarAcceso, MAX_BYTES } from "./acceso.j
 import { nombreEmblema, aImagen, MAX_SVG } from "./emblemas.js";
 import { gerenciaDe, gerenciaDeEtiquetas, GENERAL } from "./gerencias.js";
 import { leerConTope } from "./lecturatope.js";
+import { leerEmblemasEn } from "./emblemas_carga.js";
 
 export class ErrorGraph extends Error {
   constructor(codigo, mensaje, estado) { super(mensaje); this.codigo = codigo; this.estado = estado || null; }
@@ -256,27 +257,21 @@ export async function identidad(f, p) {
 // Los emblemas de la gerencia (positivo y, si existe, negativo), leídos con la cuenta de la persona desde la carpeta hermana `marca`.
 // Devuelve { claro, oscuro } con direcciones data: (oscuro puede ser null: se usa el positivo en un recuadro claro) o null si no hay emblema
 // o la persona no tiene permiso: nunca lanza error y no guarda nada en el navegador.
+// Una lista de los archivos de `marca` y una lectura con tope (MAX_SVG) por cada emblema que está en la lista: ver emblemas_carga.js.
 export async function leerEmblemas(f, id) {
-  const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, CONFIG.carpetaMarca) : null;
-  const pos = nombreEmblema(id, false);
-  if (!r || r.host !== f.host || !pos) return null;
-  const a = new FuenteSP(r.host, r.carpeta);
-  const uno = async nombre => {
-    try {
-      const meta = await a.metadatos(nombre);
-      return meta.bytes > MAX_SVG ? null : aImagen(await a.leer(nombre));
-    } catch (_) { return null; }
-  };
-  const [claro, oscuro] = await Promise.all([uno(pos), uno(nombreEmblema(id, true))]);
-  return claro ? { claro, oscuro } : null;
+  const m = await leerEmblemasDe(f, [id]);
+  return Object.prototype.hasOwnProperty.call(m, id) ? m[id] : null;
 }
 
-// Los emblemas de varias gerencias a la vez ({ id: {claro, oscuro} | null }), cada uno con las mismas reglas de `leerEmblemas`.
+// Los emblemas de varias gerencias a la vez ({ id: {claro, oscuro} | null }), con una sola lista de archivos de `marca` para todas.
 // Nunca lanza error: la gerencia cuyo emblema no se pueda leer queda en null.
 export async function leerEmblemasDe(f, ids) {
-  const lista = [...new Set(Array.isArray(ids) ? ids : [])].filter(id => nombreEmblema(id, false)).slice(0, 30);
-  const res = await Promise.all(lista.map(id => leerEmblemas(f, id).catch(() => null)));
-  return Object.fromEntries(lista.map((id, i) => [id, res[i]]));
+  let a = null;
+  try {
+    const r = f && f.tipo === "graph" ? rutaAcceso({ host: f.host, carpeta: f.carpeta }, CONFIG.carpetaMarca) : null;
+    a = r && r.host === f.host ? new FuenteSP(r.host, r.carpeta) : null;
+  } catch (_) { a = null; }
+  return leerEmblemasEn({ ids, listaDe: a ? () => a.archivosDeCarpeta() : null, leerArchivo: a ? nombre => a.leerTope(nombre, MAX_SVG) : null, aImagen, nombreEmblema, max: MAX_SVG });
 }
 
 // El catálogo ya no está donde se guardó (movido, borrado o sin permiso): se avisa sin detalles y no se busca en otro lugar.

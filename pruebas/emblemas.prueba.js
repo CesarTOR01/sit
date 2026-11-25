@@ -55,25 +55,32 @@ globalThis.fetch = async (url) => {
   peticiones.push(u);
   const m = /decodedurl='([^']+)'\)(\/\$value)?/.exec(u);
   const ruta = m ? decodeURIComponent(m[1]) : "";
+  const falla = estado => ({ ok: false, status: estado, headers: { get: () => null }, json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0) });
+  // la lista de archivos de la carpeta: los archivos definidos (los que valen 403 no se listan)
+  if (u.includes("/Files?")) {
+    if (!ruta.endsWith("/Raiz/marca")) return falla(404);
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ value: Object.keys(archivos).filter(k => archivos[k] !== 403).map(k => ({ Name: k, Length: String(archivos[k].largo ?? String(archivos[k]).length), TimeLastModified: "2026-01-01T00:00:00Z" })) }), arrayBuffer: async () => new ArrayBuffer(0) };
+  }
   const nombre = ruta.split("/").pop();
   const a = archivos[nombre];
-  if (!a || !ruta.includes("/Raiz/marca/")) return { ok: false, status: a === 403 ? 403 : 404, headers: { get: () => null }, json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0) };
+  if (!a || a === 403 || !ruta.includes("/Raiz/marca/")) return falla(a === 403 ? 403 : 404);
   const texto = typeof a === "string" ? a : "";
-  return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ Name: nombre, Length: String(a.largo ?? texto.length), TimeLastModified: "2026-01-01T00:00:00Z" }), arrayBuffer: async () => bytes(texto) };
+  return { ok: true, status: 200, headers: { get: n => n === "Content-Length" && a.declarado !== undefined ? String(a.declarado) : null }, json: async () => ({ Name: nombre, Length: String(a.largo ?? texto.length), TimeLastModified: "2026-01-01T00:00:00Z" }), arrayBuffer: async () => bytes(texto) };
 };
 const fuente = new FuenteSP("h.invalid", "/personal/u/Documents/Raiz/indicadores");
 const leer = async (arch, id = "comercial", f = fuente) => { peticiones = []; archivos = arch; return leerEmblemas(f, id); };
 
 let r = await leer({ "emblema-comercial.svg": SVG, "emblema-comercial-negativo.svg": SVG });
 igual(r && r.claro.startsWith("data:image/svg+xml") && r.oscuro.startsWith("data:image/svg+xml"), true, "positivo y negativo");
-igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetFileByServerRelativePath") && u.includes("/Raiz/marca/")), true, "sólo pide archivos de la carpeta hermana, en el mismo host");
+igual(peticiones.every(u => u.startsWith("https://h.invalid/personal/u/_api/web/GetF") && u.includes("/Raiz/marca")), true, "sólo pide la lista y los archivos de la carpeta hermana, en el mismo host");
+igual(peticiones.length, 3, "positivo y negativo: una lista y una lectura por archivo, sin metadatos");
 r = await leer({ "emblema-comercial.svg": SVG });
 igual(r && r.claro !== null && r.oscuro === null, true, "sin negativo: oscuro es null (se usa el positivo en recuadro)");
 igual(await leer({ "emblema-comercial-negativo.svg": SVG }), null, "sólo negativo: sin emblema");
 igual(await leer({}), null, "no existe (404)");
 igual(await leer({ "emblema-comercial.svg": 403 }), null, "sin permiso (403)");
 igual(await leer({ "emblema-comercial.svg": "<html>no</html>" }), null, "no es SVG");
-igual(await leer({ "emblema-comercial.svg": { largo: MAX_SVG + 1 } }), null, "demasiado grande por sus metadatos, sin bajarlo");
+igual(await leer({ "emblema-comercial.svg": { largo: MAX_SVG + 1 } }), null, "demasiado grande por su tamaño en la lista, sin bajarlo");
 igual(peticiones.some(u => u.includes("/$value")), false, "el archivo grande no se baja");
 igual(await leer({ "emblema-comercial.svg": SVG }, "../x"), null, "gerencia inválida: sin peticiones");
 igual(peticiones.length, 0, "gerencia inválida: ninguna petición");
